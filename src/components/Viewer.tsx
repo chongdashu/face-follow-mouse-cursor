@@ -42,6 +42,7 @@ export default function Viewer({
   const animationFrameRef = useRef<number>()
   const atlasTextureRef = useRef<THREE.Texture | null>(null)
   const mousePositionRef = useRef({ x: 0, y: 0 })
+  const atlasThrottleRef = useRef({ lastUpdateTime: 0 })
 
   const [isProcessing, setIsProcessing] = useState(!depthMap)
   const [error, setError] = useState<string | null>(null)
@@ -550,14 +551,13 @@ export default function Viewer({
       return
     }
 
-    let lastUpdateTime = 0
     const throttleMs = 16 // ~60fps
 
     const updateAtlasPosition = (x: number, y: number) => {
       const now = Date.now()
-      if (now - lastUpdateTime > throttleMs) {
+      if (now - atlasThrottleRef.current.lastUpdateTime > throttleMs) {
         setAtlasMousePosition({ x, y })
-        lastUpdateTime = now
+        atlasThrottleRef.current.lastUpdateTime = now
       }
     }
 
