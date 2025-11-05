@@ -103,6 +103,29 @@ If you're still experiencing this issue:
 
 ---
 
+### 4b. Scene Exists but Cursor Input Listeners Not Attached
+
+**Symptoms:**
+- Canvas shows the portrait image correctly
+- Face doesn't move when you move the cursor
+- Debug panel shows yaw/pitch always at 0
+
+**Root Cause:**
+- Cursor input event listeners were attaching before `sceneReady` was true
+- Effects that depend only on empty dependencies `[]` run before the scene is initialized
+- Listeners bound to a stale reference or non-existent canvas
+
+**Solution:**
+- Cursor input effect must depend on `sceneReady` to rebind listeners only after scene initialization
+- When `sceneReady` changes to true, the effect runs again and re-attaches listeners to the active canvas
+
+If still not working:
+- Hard refresh: `Ctrl+Shift+R` (Windows/Linux) or `Cmd+Shift+R` (macOS)
+- Check DevTools Console for any event listener errors
+- Ensure debug panel shows yaw/pitch values changing (if they do, the shader issue is separate)
+
+---
+
 ### 5. Three.js Scene Initialization Errors
 
 **Error Messages:**
@@ -238,8 +261,16 @@ npm list onnxruntime-web three react
 
 1. Check if Three.js scene initialized (look for errors)
 2. Open debug panel (click "Show Debug" button)
-3. Check if yaw/pitch values are changing
-4. Try adjusting intensity slider
+3. Check if yaw/pitch values are changing (if debug shows yaw/pitch changing, issue is elsewhere)
+4. Try adjusting yaw/pitch range sliders to increase sensitivity
+5. If yaw/pitch values in debug panel are stuck at 0:
+   - Scene may exist but cursor input listeners didn't attach
+   - Hard refresh: `Ctrl+Shift+R` (Windows/Linux) or `Cmd+Shift+R` (macOS)
+   - Ensure cursor input effect depends on `sceneReady` to rebind after scene init
+
+**Root Cause (Fixed):**
+- Cursor input listeners were attaching before scene was ready, so they never bound to the canvas
+- Solution: Input effect now waits for `sceneReady` and rebinds when the scene initializes
 
 ### "App is very slow"
 

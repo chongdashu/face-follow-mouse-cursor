@@ -4,8 +4,14 @@ interface ControlsProps {
   intensity: number
   smoothing: number
   showDebug: boolean
+  yawRange: number
+  pitchRange: number
+  deadZonePercent: number
   onIntensityChange: (value: number) => void
   onSmoothingChange: (value: number) => void
+  onYawRangeChange: (value: number) => void
+  onPitchRangeChange: (value: number) => void
+  onDeadZoneChange: (value: number) => void
   onToggleDebug: () => void
   onReset: () => void
   rotation: { yaw: number; pitch: number }
@@ -19,8 +25,14 @@ export default function Controls({
   intensity,
   smoothing,
   showDebug,
+  yawRange,
+  pitchRange,
+  deadZonePercent,
   onIntensityChange,
   onSmoothingChange,
+  onYawRangeChange,
+  onPitchRangeChange,
+  onDeadZoneChange,
   onToggleDebug,
   onReset,
   rotation,
@@ -54,6 +66,48 @@ export default function Controls({
             max="100"
             value={smoothing}
             onChange={(e) => onSmoothingChange(Number(e.target.value))}
+          />
+        </div>
+
+        <div className="control-group">
+          <label htmlFor="yawRange">
+            Yaw range: {yawRange.toFixed(0)}°
+          </label>
+          <input
+            id="yawRange"
+            type="range"
+            min="0"
+            max="30"
+            value={yawRange}
+            onChange={(e) => onYawRangeChange(Number(e.target.value))}
+          />
+        </div>
+
+        <div className="control-group">
+          <label htmlFor="pitchRange">
+            Pitch range: {pitchRange.toFixed(0)}°
+          </label>
+          <input
+            id="pitchRange"
+            type="range"
+            min="0"
+            max="20"
+            value={pitchRange}
+            onChange={(e) => onPitchRangeChange(Number(e.target.value))}
+          />
+        </div>
+
+        <div className="control-group">
+          <label htmlFor="deadZone">
+            Dead zone: {deadZonePercent.toFixed(0)}%
+          </label>
+          <input
+            id="deadZone"
+            type="range"
+            min="0"
+            max="20"
+            value={deadZonePercent}
+            onChange={(e) => onDeadZoneChange(Number(e.target.value))}
           />
         </div>
 

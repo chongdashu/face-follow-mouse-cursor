@@ -29,6 +29,9 @@ export default function Viewer({ portraitImage, depthMap, onDepthReady, onReset 
   const [error, setError] = useState<string | null>(null)
   const [intensity, setIntensity] = useState(100)
   const [smoothing, setSmoothing] = useState(50)
+  const [yawRange, setYawRange] = useState(CONFIG.yawRange)
+  const [pitchRange, setPitchRange] = useState(CONFIG.pitchRange)
+  const [deadZonePercent, setDeadZonePercent] = useState(Math.round(CONFIG.deadZone * 100))
   const [showDebug, setShowDebug] = useState(false)
   const [currentRotation, setCurrentRotation] = useState({ yaw: 0, pitch: 0 })
   const [fps, setFps] = useState(0)
@@ -311,7 +314,7 @@ export default function Viewer({ portraitImage, depthMap, onDepthReady, onReset 
 
   // Handle cursor input
   useEffect(() => {
-    if (!containerRef.current || !sceneStateRef.current) return
+    if (!sceneReady || !containerRef.current || !sceneStateRef.current) return
 
     const container = containerRef.current
     const material = sceneStateRef.current.material
@@ -354,7 +357,7 @@ export default function Viewer({ portraitImage, depthMap, onDepthReady, onReset 
       container.removeEventListener('mousemove', handleMove)
       container.removeEventListener('touchmove', handleMove)
     }
-  }, [])
+  }, [sceneReady])
 
   // Animation loop
   useEffect(() => {
@@ -415,6 +418,16 @@ export default function Viewer({ portraitImage, depthMap, onDepthReady, onReset 
   useEffect(() => {
     cursorMapperRef.current.setSmoothing(smoothing)
   }, [smoothing])
+
+  // Update yaw/pitch ranges
+  useEffect(() => {
+    cursorMapperRef.current.setRanges(yawRange, pitchRange)
+  }, [yawRange, pitchRange])
+
+  // Update dead zone
+  useEffect(() => {
+    cursorMapperRef.current.setDeadZone(deadZonePercent)
+  }, [deadZonePercent])
 
   // Create fallback depth map (simple radial gradient)
   const createFallbackDepth = (width: number, height: number): ImageData => {
@@ -477,12 +490,18 @@ export default function Viewer({ portraitImage, depthMap, onDepthReady, onReset 
           </div>
         )}
         <div ref={containerRef} className="viewer-canvas" />
-        <Controls
+      <Controls
           intensity={intensity}
           smoothing={smoothing}
           showDebug={showDebug}
+        yawRange={yawRange}
+        pitchRange={pitchRange}
+        deadZonePercent={deadZonePercent}
           onIntensityChange={setIntensity}
           onSmoothingChange={setSmoothing}
+        onYawRangeChange={setYawRange}
+        onPitchRangeChange={setPitchRange}
+        onDeadZoneChange={setDeadZonePercent}
           onToggleDebug={() => setShowDebug(!showDebug)}
           onReset={onReset}
           rotation={currentRotation}

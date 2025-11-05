@@ -12,6 +12,9 @@ export class CursorMapper {
   private currentYaw = 0
   private currentPitch = 0
   private smoothingAlpha = CONFIG.emaAlpha
+  private yawRangeDeg = CONFIG.yawRange
+  private pitchRangeDeg = CONFIG.pitchRange
+  private deadZoneNorm = CONFIG.deadZone
 
   /**
    * Update smoothing alpha (0-1, mapped from slider 0-100%)
@@ -20,6 +23,22 @@ export class CursorMapper {
     const min = CONFIG.emaAlphaMin
     const max = CONFIG.emaAlphaMax
     this.smoothingAlpha = min + (smoothingPercent / 100) * (max - min)
+  }
+
+  /**
+   * Update yaw/pitch ranges in degrees
+   */
+  setRanges(yawRange: number, pitchRange: number): void {
+    this.yawRangeDeg = yawRange
+    this.pitchRangeDeg = pitchRange
+  }
+
+  /**
+   * Update dead-zone size as a normalized percentage of min viewport dimension (0..1)
+   */
+  setDeadZone(deadZonePercent: number): void {
+    const clamped = Math.max(0, Math.min(100, deadZonePercent))
+    this.deadZoneNorm = clamped / 100
   }
 
   /**
@@ -42,10 +61,8 @@ export class CursorMapper {
     // Calculate distance from center
     const distance = Math.sqrt(normalizedX ** 2 + normalizedY ** 2)
 
-    // Apply dead zone
-    const minDimension = Math.min(containerWidth, containerHeight)
-    const deadZoneRadius = CONFIG.deadZone * minDimension / Math.min(containerWidth, containerHeight)
-    const normalizedDeadZone = CONFIG.deadZone
+    // Apply dead zone (normalized)
+    const normalizedDeadZone = this.deadZoneNorm
 
     if (distance < normalizedDeadZone) {
       // Inside dead zone - maintain current rotation (decay towards center)
@@ -58,16 +75,16 @@ export class CursorMapper {
     }
 
     // Map to target angles
-    const targetYaw = normalizedX * CONFIG.yawRange
-    const targetPitch = normalizedY * CONFIG.pitchRange
+    const targetYaw = normalizedX * this.yawRangeDeg
+    const targetPitch = normalizedY * this.pitchRangeDeg
 
     // Apply EMA smoothing
     this.currentYaw = this.currentYaw * (1 - this.smoothingAlpha) + targetYaw * this.smoothingAlpha
     this.currentPitch = this.currentPitch * (1 - this.smoothingAlpha) + targetPitch * this.smoothingAlpha
 
     // Clamp
-    this.currentYaw = Math.max(-CONFIG.yawRange, Math.min(CONFIG.yawRange, this.currentYaw))
-    this.currentPitch = Math.max(-CONFIG.pitchRange, Math.min(CONFIG.pitchRange, this.currentPitch))
+    this.currentYaw = Math.max(-this.yawRangeDeg, Math.min(this.yawRangeDeg, this.currentYaw))
+    this.currentPitch = Math.max(-this.pitchRangeDeg, Math.min(this.pitchRangeDeg, this.currentPitch))
 
     return {
       yaw: this.currentYaw,
