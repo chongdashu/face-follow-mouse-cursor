@@ -56,7 +56,8 @@ export class CursorMapper {
   ): RotationState {
     // Normalize to [-1, 1] centered
     const normalizedX = (cursorX / containerWidth) * 2 - 1
-    const normalizedY = (cursorY / containerHeight) * 2 - 1
+    // Invert Y since screen Y increases downward but we want positive pitch to look up
+    const normalizedY = -((cursorY / containerHeight) * 2 - 1)
 
     // Calculate distance from center
     const distance = Math.sqrt(normalizedX ** 2 + normalizedY ** 2)
