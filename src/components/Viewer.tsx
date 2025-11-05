@@ -486,13 +486,14 @@ export default function Viewer({
           atlasTextureRef.current.dispose()
         }
 
-        // Update scene texture
+        // Update scene texture (uniform is called "map", not "portraitMap")
         atlasTextureRef.current = newTexture
-        if (sceneStateRef.current?.material?.uniforms?.portraitMap) {
-          sceneStateRef.current.material.uniforms.portraitMap.value = newTexture
+        if (sceneStateRef.current?.material?.uniforms?.map) {
+          console.log('[Atlas] Updating canvas texture to:', currentAtlasImageUrl)
+          sceneStateRef.current.material.uniforms.map.value = newTexture
           sceneStateRef.current.material.needsUpdate = true
         } else {
-          console.warn('Scene state or material uniforms not available for atlas texture update')
+          console.warn('Scene material.uniforms.map not available for atlas texture update')
         }
       } catch (err) {
         console.warn('Error loading atlas texture:', err)
