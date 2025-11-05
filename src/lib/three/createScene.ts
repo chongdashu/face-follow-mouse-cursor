@@ -116,38 +116,18 @@ export function createScene(
 
   scene.add(mesh)
 
-  // Handle resize with debouncing and validation
-  let resizeTimeout: number | undefined
+  // Handle resize
   const handleResize = () => {
-    if (resizeTimeout !== undefined) {
-      clearTimeout(resizeTimeout)
-    }
-
-    resizeTimeout = window.setTimeout(() => {
-      const width = container.clientWidth
-      const height = container.clientHeight
-
-      // Only resize if dimensions are valid (greater than 0)
-      if (width > 0 && height > 0) {
-        console.log('[createScene] Resizing renderer to', width, 'x', height)
-        camera.aspect = width / height
-        camera.updateProjectionMatrix()
-        renderer.setSize(width, height)
-      } else {
-        console.warn('[createScene] Invalid container dimensions on resize:', width, 'x', height)
-      }
-
-      resizeTimeout = undefined
-    }, 100) // Debounce by 100ms to avoid rapid updates
+    const width = container.clientWidth
+    const height = container.clientHeight
+    camera.aspect = width / height
+    camera.updateProjectionMatrix()
+    renderer.setSize(width, height)
   }
   window.addEventListener('resize', handleResize)
 
   const dispose = () => {
     window.removeEventListener('resize', handleResize)
-    if (resizeTimeout !== undefined) {
-      clearTimeout(resizeTimeout)
-      resizeTimeout = undefined
-    }
     if (container.contains(renderer.domElement)) {
       container.removeChild(renderer.domElement)
     }

@@ -503,22 +503,14 @@ export default function Viewer({
   }, [currentAtlasImageUrl, generatedAtlas])
 
   // Track container dimensions for atlas mode
-  // This effect should run once on mount and track all resize events
   useEffect(() => {
     if (!containerRef.current) return
 
     const updateDimensions = () => {
       if (containerRef.current) {
-        const newWidth = containerRef.current.clientWidth
-        const newHeight = containerRef.current.clientHeight
-
-        // Only update state if dimensions actually changed
-        setContainerDimensions(prev => {
-          if (prev.width !== newWidth || prev.height !== newHeight) {
-            console.log('[Viewer] Container dimensions changed:', { width: newWidth, height: newHeight })
-            return { width: newWidth, height: newHeight }
-          }
-          return prev
+        setContainerDimensions({
+          width: containerRef.current.clientWidth,
+          height: containerRef.current.clientHeight
         })
       }
     }
@@ -529,20 +521,10 @@ export default function Viewer({
     // Update on window resize
     window.addEventListener('resize', updateDimensions)
 
-    // Also watch for ResizeObserver to catch dimension changes not triggered by window resize
-    const resizeObserver = new ResizeObserver(() => {
-      updateDimensions()
-    })
-
-    if (containerRef.current) {
-      resizeObserver.observe(containerRef.current)
-    }
-
     return () => {
       window.removeEventListener('resize', updateDimensions)
-      resizeObserver.disconnect()
     }
-  }, []) // Empty dependency array - attach listener once on mount and keep it
+  }, [sceneReady])
 
   // Track cursor position for atlas mode
   useEffect(() => {
