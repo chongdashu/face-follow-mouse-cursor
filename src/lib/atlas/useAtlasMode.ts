@@ -51,6 +51,25 @@ export function useAtlasMode(
       return
     }
 
+    // Validate container dimensions to avoid NaN
+    if (containerWidth <= 0 || containerHeight <= 0) {
+      // Container not ready, use center coordinates as default
+      const coords = { px: config.min, py: config.min }
+      setGridCoords(coords)
+      const key = createAtlasKey(coords.px, coords.py)
+      let imageUrl = imageMap.get(key)
+      if (!imageUrl && config.fallbackImage) {
+        imageUrl = imageMap.get(config.fallbackImage)
+      }
+      if (!imageUrl) {
+        imageUrl = imageMap.get('px0_py0')
+      }
+      if (imageUrl) {
+        setCurrentImageUrl(imageUrl)
+      }
+      return
+    }
+
     // Calculate grid coordinates from cursor position
     const coords = cursorToGridCoords(
       cursorX,
@@ -118,17 +137,22 @@ export function cursorToGridCoords(
   max: number,
   step: number
 ): { px: number; py: number } {
+  // Guard against invalid dimensions
+  if (containerWidth <= 0 || containerHeight <= 0) {
+    return { px: 0, py: 0 }
+  }
+
   // Normalize cursor (0 to 1)
-  const normalizedX = cursorX / containerWidth
-  const normalizedY = cursorY / containerHeight
+  const normalizedX = containerWidth > 0 ? cursorX / containerWidth : 0
+  const normalizedY = containerHeight > 0 ? cursorY / containerHeight : 0
 
   // Map to grid coordinates
   const px = Math.round((normalizedX * (max - min) + min) / step) * step
   const py = Math.round((normalizedY * (max - min) + min) / step) * step
 
-  // Clamp to bounds
-  const clampedPx = Math.max(min, Math.min(max, px))
-  const clampedPy = Math.max(min, Math.min(max, py))
+  // Guard against NaN and clamp to bounds
+  const clampedPx = !isNaN(px) ? Math.max(min, Math.min(max, px)) : 0
+  const clampedPy = !isNaN(py) ? Math.max(min, Math.min(max, py)) : 0
 
   return { px: clampedPx, py: clampedPy }
 }
