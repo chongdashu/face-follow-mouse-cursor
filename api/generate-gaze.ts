@@ -81,7 +81,7 @@ export default async function handler(
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        version: 'fofr/expression-editor:latest', // or specific version
+        version: 'fofr/expression-editor:bf913bc90e1c44ba288ba3942a538693b72e8cc7df576f3beebe56adc0a92b86',
         input: {
           image: imageData,
           pupil_x: px,
