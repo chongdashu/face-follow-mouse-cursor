@@ -32,7 +32,7 @@ interface GenerateGazeRequest {
 interface ReplicatePrediction {
   id: string
   status: 'starting' | 'processing' | 'succeeded' | 'failed' | 'canceled'
-  output?: string // URL to generated image
+  output?: string | string[] // URL(s) to generated image(s)
   error?: string
 }
 
@@ -146,9 +146,14 @@ export default async function handler(
     }
 
     if (finalPrediction.status === 'succeeded' && finalPrediction.output) {
+      // Handle both single string and array of strings from Replicate API
+      const imageUrl = Array.isArray(finalPrediction.output)
+        ? finalPrediction.output[0]
+        : finalPrediction.output
+
       return res.status(200).json({
         success: true,
-        imageUrl: finalPrediction.output,
+        imageUrl,
         px,
         py,
       })

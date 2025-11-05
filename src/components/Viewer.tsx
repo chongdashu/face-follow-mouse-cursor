@@ -396,6 +396,7 @@ export default function Viewer({
       if (generatedAtlas) {
         const now = performance.now()
         if (now - atlasThrottleRef.current.lastUpdateTime >= 33) { // ~30fps throttle
+          console.log('[ATLAS] Mouse position update:', { x, y })
           setAtlasMousePosition({ x, y })
           atlasThrottleRef.current.lastUpdateTime = now
         }
@@ -528,6 +529,13 @@ export default function Viewer({
 
   // Handle atlas mode texture updates (when atlas image changes)
   useEffect(() => {
+    console.log('[ATLAS] Texture effect fired', {
+      hasImageUrl: !!atlasState.currentImageUrl,
+      hasScene: !!sceneStateRef.current,
+      hasAtlas: !!generatedAtlas,
+      imageUrl: atlasState.currentImageUrl
+    })
+
     if (!atlasState.currentImageUrl || !sceneStateRef.current || !generatedAtlas) {
       return
     }
@@ -537,12 +545,14 @@ export default function Viewer({
 
     const loadAtlasTexture = async () => {
       try {
+        console.log('[ATLAS] Loading texture from:', imageUrl)
         // Create new texture from URL
         const loader = new THREE.TextureLoader()
         const newTexture = await new Promise<THREE.Texture>((resolve, reject) => {
           loader.load(
             imageUrl,
             (texture) => {
+              console.log('[ATLAS] Texture loaded successfully')
               // Configure texture properties
               texture.flipY = true
               texture.colorSpace = THREE.SRGBColorSpace
@@ -551,7 +561,7 @@ export default function Viewer({
             },
             undefined,
             (error) => {
-              console.warn(`Failed to load atlas texture: ${error}`)
+              console.warn(`[ATLAS] Failed to load atlas texture: ${error}`)
               reject(error)
             }
           )
@@ -565,11 +575,14 @@ export default function Viewer({
         // Update scene texture
         atlasTextureRef.current = newTexture
         if (sceneStateRef.current?.material?.uniforms?.map) {
+          console.log('[ATLAS] Updating material uniform')
           sceneStateRef.current.material.uniforms.map.value = newTexture
           sceneStateRef.current.material.uniformsNeedUpdate = true
+        } else {
+          console.warn('[ATLAS] Material or uniforms not found')
         }
       } catch (err) {
-        console.warn('Error loading atlas texture:', err)
+        console.warn('[ATLAS] Error loading atlas texture:', err)
       }
     }
 
@@ -624,11 +637,19 @@ export default function Viewer({
   useEffect(() => {
     if (!generatedAtlas) return
 
+    console.log('[ATLAS] State update effect:', {
+      gridCoords: atlasState.gridCoords,
+      newUrl: atlasState.currentImageUrl,
+      oldUrl: currentAtlasImageUrl,
+      isUrlChange: atlasState.currentImageUrl !== currentAtlasImageUrl
+    })
+
     // Always update grid coordinates so they follow cursor
     setCurrentGridCoords(atlasState.gridCoords)
 
     // Update canvas image if URL changed
     if (atlasState.currentImageUrl && atlasState.currentImageUrl !== currentAtlasImageUrl) {
+      console.log('[ATLAS] URL changed, updating state')
       setCurrentAtlasImageUrl(atlasState.currentImageUrl)
     }
   }, [atlasState, generatedAtlas])
