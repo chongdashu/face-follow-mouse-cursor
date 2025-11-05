@@ -18,14 +18,13 @@ export interface DepthResult {
  */
 export class OnnxDepthRunner {
   private session: any = null
-  private modelPath: string = ''
   private executionProviders: string[] = ['webgpu', 'webgl', 'wasm', 'cpu']
 
   /**
    * Initialize ONNX session with fallback execution providers
    */
   async initialize(modelPath: string): Promise<void> {
-    this.modelPath = modelPath
+    // modelPath is used by ort.InferenceSession.create() below
 
     // Try execution providers in order
     for (const ep of this.executionProviders) {

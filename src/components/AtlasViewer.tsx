@@ -8,7 +8,7 @@ interface AtlasViewerProps {
   onReset: () => void
 }
 
-export default function AtlasViewer({ basePath, onReset }: AtlasViewerProps) {
+export default function AtlasViewer({ onReset }: AtlasViewerProps) {
   return (
     <div style={{ padding: '2rem', textAlign: 'center' }}>
       <h2>Atlas Mode (Not Implemented)</h2>

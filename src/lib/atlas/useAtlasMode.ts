@@ -25,11 +25,11 @@ export interface AtlasState {
  * 3. Update image src based on grid position
  */
 export function useAtlasMode(
-  config: AtlasConfig,
-  cursorX: number,
-  cursorY: number,
-  containerWidth: number,
-  containerHeight: number
+  _config: AtlasConfig,
+  _cursorX: number,
+  _cursorY: number,
+  _containerWidth: number,
+  _containerHeight: number
 ): AtlasState {
   // Stub implementation - returns placeholder state
   return {

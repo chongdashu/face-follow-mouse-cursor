@@ -15,7 +15,7 @@ self.onmessage = async (e: MessageEvent<DepthWorkerMessage>) => {
   try {
     if (type === 'init') {
       // Initialize ONNX session
-      const session = await ort.InferenceSession.create(
+      await ort.InferenceSession.create(
         payload.modelPath,
         {
           executionProviders: ['webgpu', 'webgl', 'wasm', 'cpu']

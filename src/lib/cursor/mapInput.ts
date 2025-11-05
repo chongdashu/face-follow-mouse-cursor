@@ -11,10 +11,10 @@ export interface RotationState {
 export class CursorMapper {
   private currentYaw = 0
   private currentPitch = 0
-  private smoothingAlpha = CONFIG.emaAlpha
-  private yawRangeDeg = CONFIG.yawRange
-  private pitchRangeDeg = CONFIG.pitchRange
-  private deadZoneNorm = CONFIG.deadZone
+  private smoothingAlpha: number = CONFIG.emaAlpha
+  private yawRangeDeg: number = CONFIG.yawRange
+  private pitchRangeDeg: number = CONFIG.pitchRange
+  private deadZoneNorm: number = CONFIG.deadZone
 
   /**
    * Update smoothing alpha (0-1, mapped from slider 0-100%)
