@@ -56,22 +56,37 @@ function App() {
   // Show viewer when both portrait and depth are ready
   if (portraitImage && depthMap) {
     return (
-      <Viewer
-        portraitImage={portraitImage}
-        depthMap={depthMap}
-        generatedAtlas={generatedAtlas}
-        atlasError={atlasError}
-        onGenerateAtlas={handleGenerateAtlas}
-        onResetAtlas={handleResetAtlas}
-        onReset={() => {
-          setPortraitImage(null)
-          setDepthMap(null)
-          setGeneratedAtlas(null)
-          setShowAtlasGenerator(false)
-          setAtlasError(null)
-          setIsProcessing(false)
-        }}
-      />
+      <div className="app">
+        <Viewer
+          portraitImage={portraitImage}
+          depthMap={depthMap}
+          generatedAtlas={generatedAtlas}
+          atlasError={atlasError}
+          onGenerateAtlas={handleGenerateAtlas}
+          onResetAtlas={handleResetAtlas}
+          onReset={() => {
+            setPortraitImage(null)
+            setDepthMap(null)
+            setGeneratedAtlas(null)
+            setShowAtlasGenerator(false)
+            setAtlasError(null)
+            setIsProcessing(false)
+          }}
+        />
+
+        {/* Show generator modal when triggered */}
+        {showAtlasGenerator && portraitImage && (
+          <div className="atlas-generator-overlay">
+            <div className="atlas-generator-container">
+              <AtlasGenerator
+                portraitImage={portraitImage}
+                onAtlasGenerated={handleAtlasGenerated}
+                onCancel={handleCancelGeneration}
+              />
+            </div>
+          </div>
+        )}
+      </div>
     )
   }
 
