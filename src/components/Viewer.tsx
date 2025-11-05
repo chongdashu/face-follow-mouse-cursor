@@ -350,7 +350,7 @@ export default function Viewer({
     }
   }, [portraitImage, depthMap])
 
-  // Handle cursor input
+  // Handle cursor input for both depth parallax and atlas mode
   useEffect(() => {
     if (!sceneReady || !containerRef.current || !sceneStateRef.current) return
 
@@ -375,17 +375,28 @@ export default function Viewer({
       const x = clientX - rect.left
       const y = clientY - rect.top
 
+      // Always update mousePositionRef for depth parallax
+      mousePositionRef.current = { x, y }
+
+      // Update depth parallax uniforms
       const rotation = cursorMapperRef.current.map(
         x,
         y,
         rect.width,
         rect.height
       )
-
-      // Update uniforms
       material.uniforms.yaw.value = rotation.yaw
       material.uniforms.pitch.value = rotation.pitch
       setCurrentRotation(rotation)
+
+      // Update atlas coordinates if atlas mode is active
+      if (generatedAtlas) {
+        const now = performance.now()
+        if (now - atlasThrottleRef.current.lastUpdateTime >= 33) { // ~30fps throttle
+          setAtlasMousePosition({ x, y })
+          atlasThrottleRef.current.lastUpdateTime = now
+        }
+      }
     }
 
     container.addEventListener('mousemove', handleMove)
@@ -395,7 +406,7 @@ export default function Viewer({
       container.removeEventListener('mousemove', handleMove)
       container.removeEventListener('touchmove', handleMove)
     }
-  }, [sceneReady])
+  }, [sceneReady, generatedAtlas])
 
   // Animation loop
   useEffect(() => {
@@ -466,6 +477,51 @@ export default function Viewer({
   useEffect(() => {
     cursorMapperRef.current.setDeadZone(deadZonePercent)
   }, [deadZonePercent])
+
+  // Handler for previewing atlas images on hover
+  const handleAtlasImagePreview = (imageUrl: string) => {
+    if (!sceneStateRef.current || !generatedAtlas) {
+      return
+    }
+
+    const loadAtlasTexture = async () => {
+      try {
+        const loader = new THREE.TextureLoader()
+        const newTexture = await new Promise<THREE.Texture>((resolve, reject) => {
+          loader.load(
+            imageUrl,
+            (texture) => {
+              texture.flipY = true
+              texture.colorSpace = THREE.SRGBColorSpace
+              texture.needsUpdate = true
+              resolve(texture)
+            },
+            undefined,
+            (error) => {
+              console.warn(`Failed to load preview texture: ${error}`)
+              reject(error)
+            }
+          )
+        })
+
+        // Dispose old texture if it exists
+        if (atlasTextureRef.current) {
+          atlasTextureRef.current.dispose()
+        }
+
+        // Update scene texture
+        atlasTextureRef.current = newTexture
+        if (sceneStateRef.current?.material?.uniforms?.map) {
+          sceneStateRef.current.material.uniforms.map.value = newTexture
+          sceneStateRef.current.material.uniformsNeedUpdate = true
+        }
+      } catch (err) {
+        console.warn('Error loading preview texture:', err)
+      }
+    }
+
+    loadAtlasTexture()
+  }
 
   // Handle atlas mode texture updates (when atlas image changes)
   useEffect(() => {
@@ -560,48 +616,6 @@ export default function Viewer({
       if (resizeTimeout) clearTimeout(resizeTimeout)
     }
   }, []) // Empty dependency - attach once on mount and never re-attach
-
-  // Track cursor position for atlas mode (throttled to avoid excessive updates)
-  useEffect(() => {
-    if (!containerRef.current || !generatedAtlas) {
-      return
-    }
-
-    const throttleMs = 16 // ~60fps
-
-    const updateAtlasPosition = (x: number, y: number) => {
-      const now = Date.now()
-      if (now - atlasThrottleRef.current.lastUpdateTime > throttleMs) {
-        setAtlasMousePosition({ x, y })
-        atlasThrottleRef.current.lastUpdateTime = now
-      }
-    }
-
-    const handleMouseMove = (event: MouseEvent) => {
-      const rect = containerRef.current!.getBoundingClientRect()
-      const x = event.clientX - rect.left
-      const y = event.clientY - rect.top
-      mousePositionRef.current = { x, y }
-      updateAtlasPosition(x, y)
-    }
-
-    const handleTouchMove = (event: TouchEvent) => {
-      if (event.touches.length === 0) return
-      const rect = containerRef.current!.getBoundingClientRect()
-      const x = event.touches[0].clientX - rect.left
-      const y = event.touches[0].clientY - rect.top
-      mousePositionRef.current = { x, y }
-      updateAtlasPosition(x, y)
-    }
-
-    containerRef.current.addEventListener('mousemove', handleMouseMove)
-    containerRef.current.addEventListener('touchmove', handleTouchMove)
-
-    return () => {
-      containerRef.current?.removeEventListener('mousemove', handleMouseMove)
-      containerRef.current?.removeEventListener('touchmove', handleTouchMove)
-    }
-  }, [generatedAtlas])
 
   // Update current atlas image URL and grid coordinates when atlas state changes
   useEffect(() => {
@@ -700,7 +714,7 @@ export default function Viewer({
           onGenerateAtlas={onGenerateAtlas}
           onResetAtlas={onResetAtlas}
         />
-        <AtlasPreview generatedAtlas={generatedAtlas} />
+        <AtlasPreview generatedAtlas={generatedAtlas} onImageHover={handleAtlasImagePreview} />
       </div>
     )
   }
