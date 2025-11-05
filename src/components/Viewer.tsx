@@ -608,13 +608,16 @@ export default function Viewer({
     atlasConfig
   )
 
-  // Update current atlas image URL when atlas state changes
+  // Update current atlas image URL and grid coordinates when atlas state changes
   useEffect(() => {
     if (!generatedAtlas) return
 
+    // Always update grid coordinates so they follow cursor
+    setCurrentGridCoords(atlasState.gridCoords)
+
+    // Update canvas image if URL changed
     if (atlasState.currentImageUrl && atlasState.currentImageUrl !== currentAtlasImageUrl) {
       setCurrentAtlasImageUrl(atlasState.currentImageUrl)
-      setCurrentGridCoords(atlasState.gridCoords)
     }
   }, [atlasState, generatedAtlas])
 
