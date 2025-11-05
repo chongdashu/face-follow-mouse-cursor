@@ -199,6 +199,56 @@ npm run build
 
 ---
 
+### 9. Atlas Mode: Image Disappears on Page Resize
+
+**Symptoms:**
+- Atlas mode works fine initially
+- When you resize the browser window, the image disappears
+- Grid coordinates stop updating
+
+**Root Cause:**
+- Container dimensions were being read from `ref.current.clientWidth/Height` without triggering re-renders
+- When window resized, dimensions changed but React didn't know about it
+- useAtlasMode hook received stale dimensions
+
+**Solution (Fixed):**
+Track container dimensions in component state with a resize listener:
+
+```typescript
+// Track dimensions in state
+const [containerDimensions, setContainerDimensions] = useState({ width: 0, height: 0 })
+
+// Listen to window resize
+useEffect(() => {
+  const updateDimensions = () => {
+    if (containerRef.current) {
+      setContainerDimensions({
+        width: containerRef.current.clientWidth,
+        height: containerRef.current.clientHeight
+      })
+    }
+  }
+
+  updateDimensions() // Initial update
+  window.addEventListener('resize', updateDimensions)
+  return () => window.removeEventListener('resize', updateDimensions)
+}, [sceneReady])
+
+// Use state dimensions in useAtlasMode
+const atlasState = useAtlasMode(
+  generatedAtlas || null,
+  mousePositionRef.current.x,
+  mousePositionRef.current.y,
+  containerDimensions.width,  // Use state, not ref
+  containerDimensions.height,
+  config
+)
+```
+
+Now when you resize, state updates trigger re-renders and the image stays visible ✅
+
+---
+
 ## Debugging Steps
 
 ### Step 1: Check Browser Console

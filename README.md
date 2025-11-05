@@ -29,6 +29,26 @@ A proof-of-concept web application that makes a portrait image "follow" the curs
 npm install
 ```
 
+### Setup Environment Variables (Optional, for Atlas Mode)
+
+If you plan to use **Atlas Mode** (dynamic image generation):
+
+1. Copy the example environment file:
+   ```bash
+   cp .env.local.example .env.local
+   ```
+
+2. Add your Replicate API token to `.env.local`:
+   ```bash
+   REPLICATE_API_TOKEN=r8_your_token_here
+   ```
+
+   Get your token from: https://replicate.com/account/api-tokens
+
+3. Restart the dev server for changes to take effect
+
+**Note:** This is only needed for Atlas Mode. Depth Mode works without any configuration.
+
 ### Development
 
 ```bash
@@ -341,16 +361,7 @@ The `api/generate-gaze.ts` file will automatically be deployed as a serverless f
 
 **Note:** Serverless functions work with any framework (Vite, Next.js, etc.). Vercel automatically detects files in the `api/` directory and deploys them as serverless functions.
 
-### Netlify
-
-```bash
-npm install -g netlify-cli
-netlify deploy --prod
-```
-
-**Note:** Netlify uses a different serverless function format. For Netlify, you'd need to create functions in the `netlify/functions/` directory. See Netlify Functions documentation for details.
-
-Or connect your GitHub repo to Vercel/Netlify for automatic deployments.
+Or connect your GitHub repo to Vercel for automatic deployments on every git push.
 
 ## Atlas Mode (Optional)
 
@@ -399,12 +410,6 @@ Generate gaze image grids on-demand using the Replicate API. This serverless app
    - Navigate to "Environment Variables"
    - Add `REPLICATE_API_TOKEN` with your token value
    - Redeploy your project
-
-   **For Netlify Deployment:**
-   - Go to your Netlify site settings
-   - Navigate to "Environment variables"
-   - Add `REPLICATE_API_TOKEN` with your token value
-   - Redeploy your site
 
 3. **Install Dependencies:**
    The serverless function uses standard Node.js APIs. No additional dependencies required.

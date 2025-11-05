@@ -16,10 +16,16 @@ interface ControlsProps {
   onReset: () => void
   rotation: { yaw: number; pitch: number }
   fps: number
+  // Atlas mode props
+  atlasEnabled?: boolean
+  atlasGridCoords?: { px: number; py: number } | null
+  atlasError?: string | null
+  onGenerateAtlas?: () => void
+  onResetAtlas?: () => void
 }
 
 /**
- * UI controls for intensity, smoothing, and debug info
+ * UI controls for intensity, smoothing, debug info, and atlas mode
  */
 export default function Controls({
   intensity,
@@ -36,7 +42,13 @@ export default function Controls({
   onToggleDebug,
   onReset,
   rotation,
-  fps
+  fps,
+  // Atlas mode props
+  atlasEnabled,
+  atlasGridCoords,
+  atlasError,
+  onGenerateAtlas,
+  onResetAtlas
 }: ControlsProps) {
   return (
     <div className="controls">
@@ -116,6 +128,39 @@ export default function Controls({
             {showDebug ? 'Hide' : 'Show'} Debug
           </button>
           <button onClick={onReset}>Reset</button>
+        </div>
+
+        {/* Atlas mode controls */}
+        <div className="control-group atlas-controls">
+          {!atlasEnabled && onGenerateAtlas && (
+            <button onClick={onGenerateAtlas} className="atlas-generate-btn">
+              Generate Atlas
+            </button>
+          )}
+
+          {atlasEnabled && (
+            <div className="atlas-status">
+              <div className="atlas-status-info">
+                <span className="atlas-status-label">Atlas Active</span>
+                {atlasGridCoords && (
+                  <span className="atlas-grid-coords">
+                    px: {atlasGridCoords.px}, py: {atlasGridCoords.py}
+                  </span>
+                )}
+              </div>
+              {onResetAtlas && (
+                <button onClick={onResetAtlas} className="atlas-reset-btn">
+                  Clear Atlas
+                </button>
+              )}
+            </div>
+          )}
+
+          {atlasError && (
+            <div className="atlas-error">
+              ⚠️ {atlasError}
+            </div>
+          )}
         </div>
       </div>
 

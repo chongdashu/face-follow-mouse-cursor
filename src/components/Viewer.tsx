@@ -3,27 +3,44 @@ import * as THREE from 'three'
 import { OnnxDepthRunner } from '../lib/depth/onnxRunner'
 import { createScene, updateMeshSubdivisions } from '../lib/three/createScene'
 import { CursorMapper } from '../lib/cursor/mapInput'
-import { CONFIG } from '../config'
+import { useAtlasMode } from '../lib/atlas/useAtlasMode'
+import { CONFIG, ATLAS_CONFIG } from '../config'
 import Controls from './Controls'
 import './Viewer.css'
 
 interface ViewerProps {
   portraitImage: HTMLImageElement
   depthMap: ImageData | null
+  generatedAtlas?: Map<string, string> | null
+  atlasError?: string | null
   onDepthReady?: (depth: ImageData) => void
+  onGenerateAtlas?: () => void
+  onResetAtlas?: () => void
   onReset: () => void
 }
 
 /**
  * Viewer component that renders the 3D scene with depth parallax
+ * Supports optional atlas mode for hybrid depth + gaze direction effects
  */
-export default function Viewer({ portraitImage, depthMap, onDepthReady, onReset }: ViewerProps) {
+export default function Viewer({
+  portraitImage,
+  depthMap,
+  generatedAtlas,
+  atlasError,
+  onDepthReady,
+  onGenerateAtlas,
+  onResetAtlas,
+  onReset
+}: ViewerProps) {
 
   const containerRef = useRef<HTMLDivElement>(null)
   const sceneStateRef = useRef<ReturnType<typeof createScene> | null>(null)
   const cursorMapperRef = useRef<CursorMapper>(new CursorMapper())
   const depthRunnerRef = useRef<OnnxDepthRunner | null>(null)
   const animationFrameRef = useRef<number>()
+  const atlasTextureRef = useRef<THREE.Texture | null>(null)
+  const mousePositionRef = useRef({ x: 0, y: 0 })
 
   const [isProcessing, setIsProcessing] = useState(!depthMap)
   const [error, setError] = useState<string | null>(null)
@@ -36,6 +53,11 @@ export default function Viewer({ portraitImage, depthMap, onDepthReady, onReset 
   const [currentRotation, setCurrentRotation] = useState({ yaw: 0, pitch: 0 })
   const [fps, setFps] = useState(0)
   const [sceneReady, setSceneReady] = useState(false)
+
+  // Atlas mode state
+  const [currentAtlasImageUrl, setCurrentAtlasImageUrl] = useState<string | null>(null)
+  const [currentGridCoords, setCurrentGridCoords] = useState<{ px: number; py: number } | null>(null)
+  const [containerDimensions, setContainerDimensions] = useState({ width: 0, height: 0 })
 
   // Initialize depth inference if needed
   useEffect(() => {
@@ -429,6 +451,136 @@ export default function Viewer({ portraitImage, depthMap, onDepthReady, onReset 
     cursorMapperRef.current.setDeadZone(deadZonePercent)
   }, [deadZonePercent])
 
+  // Handle atlas mode texture updates (when atlas image changes)
+  useEffect(() => {
+    if (!currentAtlasImageUrl || !sceneStateRef.current || !generatedAtlas) {
+      return
+    }
+
+    const loadAtlasTexture = async () => {
+      try {
+        // Create new texture from URL
+        const loader = new THREE.TextureLoader()
+        const newTexture = await new Promise<THREE.Texture>((resolve, reject) => {
+          loader.load(
+            currentAtlasImageUrl,
+            (texture) => {
+              // Configure texture properties
+              texture.flipY = true
+              texture.colorSpace = THREE.SRGBColorSpace
+              texture.needsUpdate = true
+              resolve(texture)
+            },
+            undefined,
+            (error) => {
+              console.warn(`Failed to load atlas texture: ${error}`)
+              reject(error)
+            }
+          )
+        })
+
+        // Dispose old texture if it exists
+        if (atlasTextureRef.current) {
+          atlasTextureRef.current.dispose()
+        }
+
+        // Update scene texture
+        atlasTextureRef.current = newTexture
+        if (sceneStateRef.current) {
+          sceneStateRef.current.material.uniforms.portraitMap.value = newTexture
+          sceneStateRef.current.material.needsUpdate = true
+        }
+      } catch (err) {
+        console.warn('Error loading atlas texture:', err)
+      }
+    }
+
+    loadAtlasTexture()
+
+    return () => {
+      // Don't dispose here - texture is reused in next update
+    }
+  }, [currentAtlasImageUrl, generatedAtlas])
+
+  // Track container dimensions for atlas mode
+  useEffect(() => {
+    if (!containerRef.current) return
+
+    const updateDimensions = () => {
+      if (containerRef.current) {
+        setContainerDimensions({
+          width: containerRef.current.clientWidth,
+          height: containerRef.current.clientHeight
+        })
+      }
+    }
+
+    // Initial update
+    updateDimensions()
+
+    // Update on window resize
+    window.addEventListener('resize', updateDimensions)
+
+    return () => {
+      window.removeEventListener('resize', updateDimensions)
+    }
+  }, [sceneReady])
+
+  // Track cursor position for atlas mode
+  useEffect(() => {
+    if (!containerRef.current || !generatedAtlas) {
+      return
+    }
+
+    const handleMouseMove = (event: MouseEvent) => {
+      const rect = containerRef.current!.getBoundingClientRect()
+      mousePositionRef.current = {
+        x: event.clientX - rect.left,
+        y: event.clientY - rect.top
+      }
+    }
+
+    const handleTouchMove = (event: TouchEvent) => {
+      if (event.touches.length === 0) return
+      const rect = containerRef.current!.getBoundingClientRect()
+      mousePositionRef.current = {
+        x: event.touches[0].clientX - rect.left,
+        y: event.touches[0].clientY - rect.top
+      }
+    }
+
+    containerRef.current.addEventListener('mousemove', handleMouseMove)
+    containerRef.current.addEventListener('touchmove', handleTouchMove)
+
+    return () => {
+      containerRef.current?.removeEventListener('mousemove', handleMouseMove)
+      containerRef.current?.removeEventListener('touchmove', handleTouchMove)
+    }
+  }, [generatedAtlas])
+
+  // Use atlas mode hook to get current image
+  const atlasState = useAtlasMode(
+    generatedAtlas || null,
+    mousePositionRef.current.x,
+    mousePositionRef.current.y,
+    containerDimensions.width,
+    containerDimensions.height,
+    {
+      min: ATLAS_CONFIG.min,
+      max: ATLAS_CONFIG.max,
+      step: ATLAS_CONFIG.step,
+      fallbackImage: ATLAS_CONFIG.fallbackImage
+    }
+  )
+
+  // Update current atlas image URL when atlas state changes
+  useEffect(() => {
+    if (atlasState.currentImageUrl && atlasState.currentImageUrl !== currentAtlasImageUrl) {
+      setCurrentAtlasImageUrl(atlasState.currentImageUrl)
+      setCurrentGridCoords(atlasState.gridCoords)
+    }
+  }, [atlasState])
+
   // Create fallback depth map (simple radial gradient)
   const createFallbackDepth = (width: number, height: number): ImageData => {
     const imageData = new ImageData(width, height)
@@ -506,6 +658,12 @@ export default function Viewer({ portraitImage, depthMap, onDepthReady, onReset 
           onReset={onReset}
           rotation={currentRotation}
           fps={fps}
+          // Atlas mode props
+          atlasEnabled={!!generatedAtlas}
+          atlasGridCoords={currentGridCoords}
+          atlasError={atlasError}
+          onGenerateAtlas={onGenerateAtlas}
+          onResetAtlas={onResetAtlas}
         />
       </div>
     )

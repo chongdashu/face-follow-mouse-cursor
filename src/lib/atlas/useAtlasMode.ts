@@ -1,42 +1,109 @@
-/**
- * Stub for optional atlas mode (pre-generated image grid approach)
- * This would replace the depth-based approach with image swapping
- */
+import { useState, useEffect, useCallback } from 'react'
 
+/**
+ * Configuration for atlas mode
+ */
 export interface AtlasConfig {
-  basePath: string
   min: number
   max: number
   step: number
-  size: number
+  fallbackImage?: string
 }
 
+/**
+ * State returned by useAtlasMode hook
+ */
 export interface AtlasState {
-  currentImage: string | null
+  currentImageUrl: string | null
+  gridCoords: { px: number; py: number } | null
   isLoading: boolean
   error: string | null
 }
 
 /**
- * Hook for atlas-based gaze tracking (not implemented in MVP)
- * This would:
- * 1. Load a grid of pre-generated gaze images
- * 2. Map cursor position to nearest grid coordinate (px, py)
- * 3. Update image src based on grid position
+ * Hook for atlas-based gaze tracking
+ * Maps cursor position to grid coordinates and returns the corresponding image URL
+ *
+ * @param imageMap Map of grid coordinates to image URLs (e.g., "px-15_py-15" -> imageUrl)
+ * @param cursorX Current cursor X position (relative to container)
+ * @param cursorY Current cursor Y position (relative to container)
+ * @param containerWidth Width of the container
+ * @param containerHeight Height of the container
+ * @param config Atlas configuration (min, max, step, fallbackImage)
+ * @returns Current image URL, grid coordinates, loading state, and error
  */
 export function useAtlasMode(
-  _config: AtlasConfig,
-  _cursorX: number,
-  _cursorY: number,
-  _containerWidth: number,
-  _containerHeight: number
+  imageMap: Map<string, string> | null,
+  cursorX: number,
+  cursorY: number,
+  containerWidth: number,
+  containerHeight: number,
+  config: AtlasConfig
 ): AtlasState {
-  // Stub implementation - returns placeholder state
+  const [currentImageUrl, setCurrentImageUrl] = useState<string | null>(null)
+  const [gridCoords, setGridCoords] = useState<{ px: number; py: number } | null>(null)
+
+  // Update image based on cursor position
+  const updateImage = useCallback(() => {
+    if (!imageMap || imageMap.size === 0) {
+      setCurrentImageUrl(null)
+      setGridCoords(null)
+      return
+    }
+
+    // Calculate grid coordinates from cursor position
+    const coords = cursorToGridCoords(
+      cursorX,
+      cursorY,
+      containerWidth,
+      containerHeight,
+      config.min,
+      config.max,
+      config.step
+    )
+
+    setGridCoords(coords)
+
+    // Create key for image lookup
+    const key = createAtlasKey(coords.px, coords.py)
+
+    // Get image URL from map
+    let imageUrl = imageMap.get(key)
+
+    // Fallback to center image if not found
+    if (!imageUrl && config.fallbackImage) {
+      imageUrl = imageMap.get(config.fallbackImage)
+    }
+
+    // Fallback to center if fallback not specified
+    if (!imageUrl) {
+      imageUrl = imageMap.get('px0_py0')
+    }
+
+    if (imageUrl) {
+      setCurrentImageUrl(imageUrl)
+    }
+  }, [imageMap, cursorX, cursorY, containerWidth, containerHeight, config])
+
+  useEffect(() => {
+    updateImage()
+  }, [updateImage])
+
   return {
-    currentImage: null,
+    currentImageUrl,
+    gridCoords,
     isLoading: false,
-    error: 'Atlas mode not implemented in MVP'
+    error: imageMap === null ? 'No atlas generated' : null
   }
+}
+
+/**
+ * Create a key for atlas image lookup
+ * Converts negative numbers to use 'm' prefix (e.g., -15 becomes m15)
+ * Format: px{x}_py{y} (e.g., "px-15_py0" or "px15_pym15")
+ */
+export function createAtlasKey(px: number, py: number): string {
+  return `px${px}_py${py}`
 }
 
 /**
