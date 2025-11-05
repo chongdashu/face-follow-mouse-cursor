@@ -6,6 +6,7 @@ import { CursorMapper } from '../lib/cursor/mapInput'
 import { useAtlasMode } from '../lib/atlas/useAtlasMode'
 import { CONFIG, ATLAS_CONFIG } from '../config'
 import Controls from './Controls'
+import AtlasPreview from './AtlasPreview'
 import './Viewer.css'
 
 interface ViewerProps {
@@ -678,6 +679,7 @@ export default function Viewer({
           onGenerateAtlas={onGenerateAtlas}
           onResetAtlas={onResetAtlas}
         />
+        <AtlasPreview generatedAtlas={generatedAtlas} />
       </div>
     )
   }
