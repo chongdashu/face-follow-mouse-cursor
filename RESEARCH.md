@@ -29,11 +29,25 @@ Build a minimal, low-latency web demo where a single portrait “follows” the 
   - `portrait.jpg` (or `.webp`) at ~1024 px width.
   - `portrait_depth.png` 8‑bit grayscale, same dimensions and alignment.
 
-### Option B — Pre-generated atlas
-- Use a generator (e.g., similar to reference) to produce a gaze grid:
-  - `px`/`py` in [−15, 15] with step 3 → ~121 images at 256×256 (or chosen size).
-  - Naming pattern `gaze_px{X}_py{Y}_{size}.webp`.
-- Place images under `public/faces/` (or configured path); include index if needed.
+### Option B — Pre-generated atlas (Replicate API)
+The reference implementation (`kylan02/face_looker`) uses **Replicate API** with the `fofr/expression-editor` model to generate gaze images.
+
+This approach generates a grid of gaze images offline and commits them as static assets. For detailed setup instructions (both Python script and dynamic generation via serverless function), see **README.md → Atlas Mode section**.
+
+**Key Implementation Details:**
+- Model: `fofr/expression-editor` on Replicate
+- Parameters: `px`/`py` in [−15, 15] with configurable step size
+- Image count formula: `((max - min) / step + 1)²`
+  - Default (step=3): 121 images (11×11 grid)
+  - Step=2.5: 169 images (13×13 grid)
+  - Step=5: 49 images (7×7 grid)
+- Naming pattern: `gaze_px{X}_py{Y}_{size}.webp` (negative values use 'm' prefix)
+- Generated images placed in `public/faces/` directory
+
+See README.md for:
+- Setup instructions (Python script via face_looker)
+- Dynamic generation via Replicate API (serverless function)
+- Cost estimation and troubleshooting
 
 ## Implementation Plan (1–2 days)
 ### Option A — Depth-based (Three.js)
@@ -96,6 +110,8 @@ Build a minimal, low-latency web demo where a single portrait “follows” the 
 
 ### Pre‑generated atlas (reference)
 - ~121–169 images (11×11 or 13×13 grid) swapped as cursor moves; simple to ship; larger assets.
+- Uses Replicate API with `fofr/expression-editor` model for generation.
+- Requires API token and credits (~$0.01–0.02 per face set).
 
 ### Quick comparison
 | **Feature** | **Depth‑based** | **Pre‑generated atlas** |
@@ -105,18 +121,54 @@ Build a minimal, low-latency web demo where a single portrait “follows” the 
 | Motion | Continuous | Discrete grid |
 | Realism | Good (2.5D) | Excellent (AI‑generated) |
 | Perf | GPU (60 fps target) | Very light |
-| Cost | Free (offline depth) | ~$0.01–0.02/face gen |
+| Cost | Free (offline depth) | ~$0.01–0.02/face gen (Replicate API) |
+| Generation | Depth Anything (offline) | Replicate API (cloud) |
 
 Links: reference repo `kylan02/face_looker` [github.com/kylan02/face_looker](https://github.com/kylan02/face_looker)
 
 ## Reference Implementation Insights (adapted from face_looker)
 
+The reference implementation uses **Replicate API** with the following approach:
+
+**Image Generation:**
+- Python script (`main.py`) that calls Replicate API
+- Uses `fofr/expression-editor` model for gaze redirection
+- Supports resume via `--skip-existing` flag
+- Generates CSV index file for mapping coordinates to filenames
+
+**Cursor Mapping:**
 - Normalize cursor relative to container; clamp and map to output.
 - Use dead‑zone (~8%) and EMA (`alpha` ~0.2) for stability.
 - Container‑relative positioning is crucial; support touch by mapping to same handler.
+- Map cursor to grid coordinates, then look up corresponding image filename.
 
-Cursor mapping (continuous angles):
+**React Implementation:**
+- Hook-based approach (`useGazeTracking`) for image swapping
+- Handles image loading states and errors
+- Supports preloading for smoother transitions
+- Debug overlay available in development mode
 
+Cursor mapping (for atlas mode - discrete grid):
+```javascript
+// Normalize cursor to [0, 1]
+const normalizedX = cursorX / containerWidth
+const normalizedY = cursorY / containerHeight
+
+// Map to grid coordinates (px, py)
+const px = Math.round((normalizedX * (max - min) + min) / step) * step
+const py = Math.round((normalizedY * (max - min) + min) / step) * step
+
+// Clamp to bounds
+const clampedPx = Math.max(min, Math.min(max, px))
+const clampedPy = Math.max(min, Math.min(max, py))
+
+// Generate filename (negative values use 'm' prefix)
+const pxStr = px < 0 ? `m${Math.abs(px)}` : `${px}`
+const pyStr = py < 0 ? `m${Math.abs(py)}` : `${py}`
+const filename = `gaze_px${pxStr}_py${pyStr}_256.webp`
+```
+
+Cursor mapping (for depth mode - continuous angles):
 ```javascript
 // Normalize cursor to [-1, 1]
 const nx = ((x - left) / width) * 2 - 1;
@@ -136,13 +188,17 @@ state.pitch = lerp(state.pitch, pitch, 0.2);
 - Config/constants: clamps, `depthScale`, EMA alpha.
 - Minimal modules: scene init, input mapping, shader/material setup, UI.
 - Include a small note or script to run Depth Anything offline to produce `portrait_depth.png` for new images.
+- For atlas mode: include Python script for Replicate API generation (reference `kylan02/face_looker` repo).
 
 ## Clear Next Steps (post‑MVP)
 - Add a face matte to reduce background bleed and improve edges.
 - Optional pose atlas for more extreme angles and higher realism.
 - Blink/micro‑saccades/idle breathing.
 - Drag‑and‑drop for user‑supplied portrait + local depth generation.
+- Consider adding Replicate API integration script for atlas generation workflow.
 
 ## Citations
 - Reference atlas approach: `kylan02/face_looker` [github.com/kylan02/face_looker](https://github.com/kylan02/face_looker)
+- Replicate API: [replicate.com](https://replicate.com)
+- Expression Editor model: `fofr/expression-editor` on Replicate
 - Discussion/context: Wes Bos tweet `x.com/wesbos/status/1985465640648339578` [x.com/wesbos/status/1985465640648339578](https://x.com/wesbos/status/1985465640648339578)
