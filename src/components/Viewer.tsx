@@ -486,9 +486,11 @@ export default function Viewer({
 
         // Update scene texture
         atlasTextureRef.current = newTexture
-        if (sceneStateRef.current) {
+        if (sceneStateRef.current?.material?.uniforms?.portraitMap) {
           sceneStateRef.current.material.uniforms.portraitMap.value = newTexture
           sceneStateRef.current.material.needsUpdate = true
+        } else {
+          console.warn('Scene state or material uniforms not available for atlas texture update')
         }
       } catch (err) {
         console.warn('Error loading atlas texture:', err)
