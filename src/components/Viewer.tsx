@@ -58,6 +58,7 @@ export default function Viewer({
   const [currentAtlasImageUrl, setCurrentAtlasImageUrl] = useState<string | null>(null)
   const [currentGridCoords, setCurrentGridCoords] = useState<{ px: number; py: number } | null>(null)
   const [containerDimensions, setContainerDimensions] = useState({ width: 0, height: 0 })
+  const [atlasMousePosition, setAtlasMousePosition] = useState({ x: 0, y: 0 })
 
   // Initialize depth inference if needed
   useEffect(() => {
@@ -536,19 +537,23 @@ export default function Viewer({
 
     const handleMouseMove = (event: MouseEvent) => {
       const rect = containerRef.current!.getBoundingClientRect()
-      mousePositionRef.current = {
+      const pos = {
         x: event.clientX - rect.left,
         y: event.clientY - rect.top
       }
+      mousePositionRef.current = pos
+      setAtlasMousePosition(pos)
     }
 
     const handleTouchMove = (event: TouchEvent) => {
       if (event.touches.length === 0) return
       const rect = containerRef.current!.getBoundingClientRect()
-      mousePositionRef.current = {
+      const pos = {
         x: event.touches[0].clientX - rect.left,
         y: event.touches[0].clientY - rect.top
       }
+      mousePositionRef.current = pos
+      setAtlasMousePosition(pos)
     }
 
     containerRef.current.addEventListener('mousemove', handleMouseMove)
@@ -574,8 +579,8 @@ export default function Viewer({
   // Use atlas mode hook to get current image
   const atlasState = useAtlasMode(
     generatedAtlas || null,
-    mousePositionRef.current.x,
-    mousePositionRef.current.y,
+    atlasMousePosition.x,
+    atlasMousePosition.y,
     containerDimensions.width,
     containerDimensions.height,
     atlasConfig
