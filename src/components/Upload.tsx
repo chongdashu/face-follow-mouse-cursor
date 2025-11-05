@@ -94,6 +94,51 @@ export default function Upload({ onImageUpload }: UploadProps) {
     }
   }
 
+  /**
+   * Load and use the default profile image
+   */
+  const handleQuickLoad = async () => {
+    try {
+      const img = new Image()
+      img.crossOrigin = 'anonymous'
+      
+      await new Promise<void>((resolve, reject) => {
+        img.onload = () => resolve()
+        img.onerror = () => reject(new Error('Failed to load default image'))
+        img.src = '/aioriented-profile.png'
+      })
+
+      // Apply same resizing logic as file upload
+      const canvas = document.createElement('canvas')
+      const ctx = canvas.getContext('2d')
+      if (!ctx) {
+        throw new Error('Could not get canvas context')
+      }
+
+      let { width, height } = img
+      if (width > CONFIG.maxImageWidth) {
+        height = (height * CONFIG.maxImageWidth) / width
+        width = CONFIG.maxImageWidth
+      }
+
+      canvas.width = width
+      canvas.height = height
+      ctx.drawImage(img, 0, 0, width, height)
+
+      const resizedImg = new Image()
+      await new Promise<void>((resolve, reject) => {
+        resizedImg.onload = () => resolve()
+        resizedImg.onerror = () => reject(new Error('Failed to create resized image'))
+        resizedImg.src = canvas.toDataURL('image/jpeg', 0.9)
+      })
+
+      onImageUpload(resizedImg)
+    } catch (error) {
+      console.error('Error loading default image:', error)
+      alert('Failed to load default image. Please try again.')
+    }
+  }
+
   return (
     <div className="upload-container">
       <div
@@ -130,6 +175,10 @@ export default function Upload({ onImageUpload }: UploadProps) {
           <p className="upload-hint">Supports JPG, PNG, and WebP (max {CONFIG.maxImageWidth}px width)</p>
         </div>
       </div>
+      <button className="quick-load-button" onClick={(e) => { e.stopPropagation(); handleQuickLoad(); }}>
+        <span className="quick-load-icon">✨</span>
+        <span>Try Example Image</span>
+      </button>
     </div>
   )
 }
