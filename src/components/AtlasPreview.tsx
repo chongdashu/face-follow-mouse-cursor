@@ -8,22 +8,13 @@ interface AtlasPreviewProps {
  * Display a grid of all generated atlas images
  */
 export default function AtlasPreview({ generatedAtlas }: AtlasPreviewProps) {
-  console.log('[AtlasPreview] Received generatedAtlas:', {
-    exists: !!generatedAtlas,
-    size: generatedAtlas?.size || 0,
-    keys: generatedAtlas ? Array.from(generatedAtlas.keys()).slice(0, 5) : []
-  })
-
   if (!generatedAtlas || generatedAtlas.size === 0) {
-    console.log('[AtlasPreview] Atlas empty or null, returning null')
     return null
   }
 
   // Convert map to sorted array for consistent grid display
   const images = Array.from(generatedAtlas.entries())
     .sort(([keyA], [keyB]) => keyA.localeCompare(keyB))
-
-  console.log('[AtlasPreview] Displaying', images.length, 'images')
 
   return (
     <div className="atlas-preview">

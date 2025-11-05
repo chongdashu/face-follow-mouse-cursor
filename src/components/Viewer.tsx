@@ -486,14 +486,11 @@ export default function Viewer({
           atlasTextureRef.current.dispose()
         }
 
-        // Update scene texture (uniform is called "map", not "portraitMap")
+        // Update scene texture
         atlasTextureRef.current = newTexture
         if (sceneStateRef.current?.material?.uniforms?.map) {
-          console.log('[Atlas] Updating canvas texture to:', currentAtlasImageUrl)
           sceneStateRef.current.material.uniforms.map.value = newTexture
           sceneStateRef.current.material.needsUpdate = true
-        } else {
-          console.warn('Scene material.uniforms.map not available for atlas texture update')
         }
       } catch (err) {
         console.warn('Error loading atlas texture:', err)
@@ -615,15 +612,7 @@ export default function Viewer({
   useEffect(() => {
     if (!generatedAtlas) return
 
-    console.log('[Atlas] State:', {
-      mousePos: atlasMousePosition,
-      gridCoords: atlasState.gridCoords,
-      imageUrl: atlasState.currentImageUrl ? 'EXISTS' : 'MISSING',
-      containerDims: containerDimensions
-    })
-
     if (atlasState.currentImageUrl && atlasState.currentImageUrl !== currentAtlasImageUrl) {
-      console.log('[Atlas] Updating texture to:', atlasState.currentImageUrl)
       setCurrentAtlasImageUrl(atlasState.currentImageUrl)
       setCurrentGridCoords(atlasState.gridCoords)
     }
