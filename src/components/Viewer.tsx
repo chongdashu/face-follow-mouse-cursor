@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, useMemo } from 'react'
 import * as THREE from 'three'
 import { OnnxDepthRunner } from '../lib/depth/onnxRunner'
 import { createScene, updateMeshSubdivisions } from '../lib/three/createScene'
@@ -558,6 +558,17 @@ export default function Viewer({
     }
   }, [generatedAtlas])
 
+  // Memoize atlas config to prevent infinite re-renders
+  const atlasConfig = useMemo(
+    () => ({
+      min: ATLAS_CONFIG.min,
+      max: ATLAS_CONFIG.max,
+      step: ATLAS_CONFIG.step,
+      fallbackImage: ATLAS_CONFIG.fallbackImage
+    }),
+    [] // ATLAS_CONFIG is constant from config.ts, so dependencies are stable
+  )
+
   // Use atlas mode hook to get current image
   const atlasState = useAtlasMode(
     generatedAtlas || null,
@@ -565,12 +576,7 @@ export default function Viewer({
     mousePositionRef.current.y,
     containerDimensions.width,
     containerDimensions.height,
-    {
-      min: ATLAS_CONFIG.min,
-      max: ATLAS_CONFIG.max,
-      step: ATLAS_CONFIG.step,
-      fallbackImage: ATLAS_CONFIG.fallbackImage
-    }
+    atlasConfig
   )
 
   // Update current atlas image URL when atlas state changes
