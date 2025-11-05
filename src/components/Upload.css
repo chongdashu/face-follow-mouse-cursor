@@ -1,0 +1,46 @@
+.upload-container {
+  width: 100%;
+  max-width: 600px;
+  padding: 2rem;
+}
+
+.upload-dropzone {
+  border: 2px dashed rgba(255, 255, 255, 0.3);
+  border-radius: 12px;
+  padding: 4rem 2rem;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.upload-dropzone:hover {
+  border-color: rgba(255, 255, 255, 0.5);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.upload-dropzone.dragging {
+  border-color: rgba(100, 150, 255, 0.8);
+  background: rgba(100, 150, 255, 0.1);
+}
+
+.upload-content svg {
+  margin-bottom: 1rem;
+  opacity: 0.7;
+}
+
+.upload-content h2 {
+  margin: 0.5rem 0;
+  font-size: 1.5rem;
+}
+
+.upload-content p {
+  margin: 0.5rem 0;
+  opacity: 0.7;
+}
+
+.upload-hint {
+  font-size: 0.875rem;
+  opacity: 0.5;
+}
+
