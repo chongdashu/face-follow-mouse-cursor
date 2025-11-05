@@ -484,12 +484,16 @@ export default function Viewer({
 
   // Handler for previewing atlas images on hover
   const handleAtlasImagePreview = (imageUrl: string) => {
+    console.log('[HOVER] Preview requested for:', imageUrl, typeof imageUrl)
+
     if (!sceneStateRef.current || !generatedAtlas) {
+      console.log('[HOVER] Missing scene or atlas')
       return
     }
 
     const loadAtlasTexture = async () => {
       try {
+        console.log('[HOVER] Loading texture from:', imageUrl)
         const loader = new THREE.TextureLoader()
         const newTexture = await new Promise<THREE.Texture>((resolve, reject) => {
           loader.load(
