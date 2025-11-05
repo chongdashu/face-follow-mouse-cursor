@@ -51,6 +51,12 @@ export function useAtlasMode(
       return
     }
 
+    // Log available keys in map for debugging
+    if (imageMap.size > 0) {
+      const keys = Array.from(imageMap.keys())
+      console.log('[ATLAS-HOOK] Available keys in map:', keys.slice(0, 10), `... (${keys.length} total)`)
+    }
+
     // Validate container dimensions to avoid NaN
     if (containerWidth <= 0 || containerHeight <= 0) {
       // Container not ready, use center coordinates as default
@@ -81,13 +87,24 @@ export function useAtlasMode(
       config.step
     )
 
+    console.log('[ATLAS-HOOK] Calculated coords:', {
+      cursorX,
+      cursorY,
+      containerWidth,
+      containerHeight,
+      config: { min: config.min, max: config.max, step: config.step },
+      calculatedCoords: coords
+    })
+
     setGridCoords(coords)
 
     // Create key for image lookup
     const key = createAtlasKey(coords.px, coords.py)
+    console.log('[ATLAS-HOOK] Looking up key:', key, 'in map size:', imageMap.size)
 
     // Get image URL from map
     let imageUrl = imageMap.get(key)
+    console.log('[ATLAS-HOOK] Found URL for key:', !!imageUrl)
 
     // Fallback to center image if not found
     if (!imageUrl && config.fallbackImage) {

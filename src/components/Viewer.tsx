@@ -62,8 +62,50 @@ export default function Viewer({
   const [containerDimensions, setContainerDimensions] = useState({ width: 0, height: 0 })
   const [atlasMousePosition, setAtlasMousePosition] = useState({ x: 0, y: 0 })
 
-  // Create memoized atlas config to prevent infinite loops
-  const atlasConfig = useMemo(() => ATLAS_CONFIG, [])
+  // Detect atlas config from generated atlas keys
+  const atlasConfig = useMemo(() => {
+    if (!generatedAtlas || generatedAtlas.size === 0) {
+      return ATLAS_CONFIG
+    }
+
+    // Extract the first key to detect the grid parameters
+    const firstKey = Array.from(generatedAtlas.keys())[0]
+    console.log('[ATLAS] Detecting config from key:', firstKey)
+
+    // Parse key format: px{number}_py{number}
+    const match = firstKey.match(/px(-?\d+)_py(-?\d+)/)
+    if (!match) {
+      console.warn('[ATLAS] Could not parse key format, using default config')
+      return ATLAS_CONFIG
+    }
+
+    const values = Array.from(generatedAtlas.keys())
+      .map(key => {
+        const m = key.match(/px(-?\d+)_py(-?\d+)/)
+        return m ? [parseInt(m[1]), parseInt(m[2])] : null
+      })
+      .filter(v => v !== null) as number[][]
+
+    if (values.length === 0) {
+      return ATLAS_CONFIG
+    }
+
+    // Get unique px and py values
+    const pxValues = [...new Set(values.map(v => v[0]))].sort((a, b) => a - b)
+    const pyValues = [...new Set(values.map(v => v[1]))].sort((a, b) => a - b)
+
+    // Calculate step size
+    const pxStep = pxValues.length > 1 ? pxValues[1] - pxValues[0] : 1
+    const pyStep = pyValues.length > 1 ? pyValues[1] - pyValues[0] : 1
+    const step = Math.max(pxStep, pyStep)
+
+    const min = Math.min(...pxValues, ...pyValues)
+    const max = Math.max(...pxValues, ...pyValues)
+
+    const detectedConfig = { ...ATLAS_CONFIG, min, max, step }
+    console.log('[ATLAS] Detected config:', detectedConfig)
+    return detectedConfig
+  }, [generatedAtlas])
 
   // Use atlas mode hook to get current image
   const atlasState = useAtlasMode(
