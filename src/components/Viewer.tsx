@@ -612,11 +612,21 @@ export default function Viewer({
 
   // Update current atlas image URL when atlas state changes
   useEffect(() => {
+    if (!generatedAtlas) return
+
+    console.log('[Atlas] State:', {
+      mousePos: atlasMousePosition,
+      gridCoords: atlasState.gridCoords,
+      imageUrl: atlasState.currentImageUrl ? 'EXISTS' : 'MISSING',
+      containerDims: containerDimensions
+    })
+
     if (atlasState.currentImageUrl && atlasState.currentImageUrl !== currentAtlasImageUrl) {
+      console.log('[Atlas] Updating texture to:', atlasState.currentImageUrl)
       setCurrentAtlasImageUrl(atlasState.currentImageUrl)
       setCurrentGridCoords(atlasState.gridCoords)
     }
-  }, [atlasState])
+  }, [atlasState, generatedAtlas])
 
   // Create fallback depth map (simple radial gradient)
   const createFallbackDepth = (width: number, height: number): ImageData => {
