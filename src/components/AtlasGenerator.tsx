@@ -78,6 +78,34 @@ export default function AtlasGenerator({
     }
   }
 
+  /**
+   * Generate ultra-minimal test set (3x3 grid, 9 images) for ultra-fast testing
+   */
+  const handleUltraTestGenerate = async () => {
+    setIsGenerating(true)
+    setError(null)
+    setProgress({ completed: 0, total: 9 })
+
+    try {
+      const imageMap = await generateGazeAtlas(
+        portraitImage,
+        -8,  // min
+        8,   // max
+        8,   // step (8 degree steps = 3x3 grid: -8, 0, 8)
+        (completed, total) => {
+          setProgress({ completed, total })
+        }
+      )
+
+      setGeneratedImages(imageMap)
+      setIsGenerating(false)
+      onAtlasGenerated?.(imageMap)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to generate ultra test atlas')
+      setIsGenerating(false)
+    }
+  }
+
   if (generatedImages) {
     return (
       <div className="atlas-generator">
@@ -126,20 +154,26 @@ export default function AtlasGenerator({
         </div>
       ) : (
         <div className="atlas-actions">
-          <button 
+          <button
             className="atlas-button atlas-button-primary"
             onClick={handleGenerate}
           >
             Generate Full Atlas (121 images)
           </button>
-          <button 
+          <button
             className="atlas-button atlas-button-secondary"
             onClick={handleTestGenerate}
           >
             Test Generation (25 images)
           </button>
+          <button
+            className="atlas-button atlas-button-secondary"
+            onClick={handleUltraTestGenerate}
+          >
+            Ultra Test (9 images)
+          </button>
           {onCancel && (
-            <button 
+            <button
               className="atlas-button atlas-button-cancel"
               onClick={onCancel}
             >
