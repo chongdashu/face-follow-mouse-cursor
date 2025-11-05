@@ -261,16 +261,42 @@ npm list onnxruntime-web three react
 
 1. Check if Three.js scene initialized (look for errors)
 2. Open debug panel (click "Show Debug" button)
-3. Check if yaw/pitch values are changing (if debug shows yaw/pitch changing, issue is elsewhere)
-4. Try adjusting yaw/pitch range sliders to increase sensitivity
-5. If yaw/pitch values in debug panel are stuck at 0:
-   - Scene may exist but cursor input listeners didn't attach
-   - Hard refresh: `Ctrl+Shift+R` (Windows/Linux) or `Cmd+Shift+R` (macOS)
-   - Ensure cursor input effect depends on `sceneReady` to rebind after scene init
+3. Check if yaw/pitch values are changing:
+   - **If debug panel shows yaw/pitch values changing to non-zero:** The parallax displacement may be too small to see (check "Vertex Shader Displacement Too Small" below)
+   - **If debug panel shows yaw/pitch stuck at 0:** Cursor input listeners didn't attach (see below)
+4. Try adjusting the **Intensity slider** to increase parallax effect strength
+5. Try adjusting yaw/pitch range sliders to increase rotation sensitivity
+
+**If yaw/pitch values are stuck at 0:**
+- Scene may exist but cursor input listeners didn't attach
+- Hard refresh: `Ctrl+Shift+R` (Windows/Linux) or `Cmd+Shift+R` (macOS)
+- Ensure cursor input effect depends on `sceneReady` to rebind after scene init
 
 **Root Cause (Fixed):**
 - Cursor input listeners were attaching before scene was ready, so they never bound to the canvas
 - Solution: Input effect now waits for `sceneReady` and rebinds when the scene initializes
+
+---
+
+### "Vertex Shader Displacement Too Small" (Debug Shows Values Changing But Image Doesn't Move)
+
+**Symptoms:**
+- Debug panel shows yaw/pitch values changing (e.g., yaw: 5.23°, pitch: 2.15°)
+- Image appears completely static - no parallax effect visible
+- Intensity slider doesn't help much
+
+**Root Cause:**
+- Vertex shader displacement calculation was multiplying too many small values together
+- With depthScale = 0.015 and sin(angle) ≈ 0.2, actual displacement was only ~0.15% of plane size
+- The effect was mathematically correct but visually imperceptible
+
+**Solution (Fixed):**
+Updated vertex shader in `src/lib/three/createScene.ts` to:
+1. Expand depth range: `(depth - 0.5) * 2.0` instead of `(depth - 0.5)`
+2. Apply stronger multiplier: added `* 2.0` to increase displacement 4x
+3. Simplified calculation for clarity
+
+The updated shader now produces visible parallax that matches cursor movement.
 
 ### "App is very slow"
 

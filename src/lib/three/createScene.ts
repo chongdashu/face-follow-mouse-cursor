@@ -17,30 +17,17 @@ void main() {
   // Sample depth map
   float depth = texture2D(depthMap, uv).r;
 
-  // Calculate displacement based on depth and rotation
-  // Yaw rotates around Y axis (left/right)
-  // Pitch rotates around X axis (up/down)
-  
   // Convert angles to radians
   float yawRad = yaw * 3.14159265359 / 180.0;
   float pitchRad = pitch * 3.14159265359 / 180.0;
 
-  // Calculate displacement direction based on rotation
-  // For parallax effect, displace vertices based on depth and rotation
+  // Calculate parallax strength from depth (range -1 to 1)
+  float parallaxStrength = (depth - 0.5) * 2.0;
+
+  // Apply displacement based on rotation and depth
   vec3 pos = position;
-  
-  // Apply depth-based displacement along normal
-  vec3 normalDir = normalize(normal);
-  float displacement = (depth - 0.5) * depthScale;
-  
-  // Apply rotation-based offset
-  vec2 rotationOffset = vec2(
-    sin(yawRad) * displacement,
-    sin(pitchRad) * displacement
-  );
-  
-  pos.xy += rotationOffset;
-  pos += normalDir * displacement;
+  pos.x += sin(yawRad) * parallaxStrength * depthScale * 2.0;
+  pos.y -= sin(pitchRad) * parallaxStrength * depthScale * 2.0;
 
   gl_Position = projectionMatrix * modelViewMatrix * vec4(pos, 1.0);
 }
