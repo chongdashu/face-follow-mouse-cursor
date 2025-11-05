@@ -249,6 +249,77 @@ Now when you resize, state updates trigger re-renders and the image stays visibl
 
 ---
 
+### 10. Atlas Mode: Images Not Swapping When Moving Cursor
+
+**Symptoms:**
+- Atlas preview HUD shows all generated images correctly
+- Hovering over HUD grid items swaps the canvas image (preview works)
+- But moving cursor over canvas doesn't update the image
+- Canvas stuck on same image
+
+**Root Causes & Fixes:**
+
+**Issue 1: Replicate API Returns Array Instead of String**
+- Replicate's `output` field is an array of URLs, not a single URL
+- Code was storing entire array in Map: `imageUrl: ["https://..."]`
+- TextureLoader failed silently when trying to load array as URL string
+
+**Fix:** Extract first URL from array in `api/generate-gaze.ts`:
+```typescript
+const imageUrl = Array.isArray(finalPrediction.output)
+  ? finalPrediction.output[0]
+  : finalPrediction.output
+```
+
+**Issue 2: Shader Uniforms Not Being Applied**
+- Changed `material.needsUpdate = true` to `material.uniformsNeedUpdate = true`
+- ShaderMaterial requires `uniformsNeedUpdate` flag to apply uniform changes
+- Without this, new textures weren't being rendered even after loading
+
+**Issue 3: Depth Parallax Conflicting with Atlas Mode**
+- Both depth parallax shader AND atlas texture swapping were active simultaneously
+- Geometry deformation was competing with texture changes, creating visual noise
+- Atlas images already encode gaze angle, so depth effect was redundant
+
+**Fix:** Disable depth parallax when atlas is active:
+```typescript
+if (!generatedAtlas) {
+  material.uniforms.yaw.value = rotation.yaw
+  material.uniforms.pitch.value = rotation.pitch
+}
+```
+
+**Issue 4: Mismatched Atlas Configuration**
+- Coordinate calculation used hardcoded `ATLAS_CONFIG` (min:-15, max:15, step:3)
+- But actual generated atlas could have different params (e.g., min:-8, max:8, step:8 for 9 images)
+- Calculated coordinates mapped to non-existent keys, always falling back to center image
+
+**Fix:** Auto-detect actual config from generated keys:
+```typescript
+// Parse all keys to extract min, max, step from actual values
+const pxValues = [...new Set(values.map(v => v[0]))].sort((a, b) => a - b)
+const pyValues = [...new Set(values.map(v => v[1]))].sort((a, b) => a - b)
+const pxStep = pxValues.length > 1 ? pxValues[1] - pxValues[0] : 1
+const step = Math.max(pxStep, pyStep)
+const min = Math.min(...pxValues, ...pyValues)
+const max = Math.max(...pxValues, ...pyValues)
+```
+
+Now works with ANY atlas size: 9 images (3×3), 25 images (5×5), 121 images (11×11), etc.
+
+**How to verify it's working:**
+
+1. Open DevTools Console (F12)
+2. Generate an atlas
+3. Look for:
+   - `[ATLAS] Detected config: {min: -8, max: 8, step: 8}` (for 9-image atlas)
+   - `[ATLAS] Mouse position update: {x: ..., y: ...}` (coordinates updating as you move)
+   - `[ATLAS] Texture loaded successfully` (images loading)
+   - `[ATLAS] Updating material uniform` (shader being updated)
+4. Move cursor - images should swap smoothly
+
+---
+
 ## Debugging Steps
 
 ### Step 1: Check Browser Console
