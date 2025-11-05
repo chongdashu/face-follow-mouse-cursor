@@ -62,6 +62,19 @@ export default function Viewer({
   const [containerDimensions, setContainerDimensions] = useState({ width: 0, height: 0 })
   const [atlasMousePosition, setAtlasMousePosition] = useState({ x: 0, y: 0 })
 
+  // Create memoized atlas config to prevent infinite loops
+  const atlasConfig = useMemo(() => ATLAS_CONFIG, [])
+
+  // Use atlas mode hook to get current image
+  const atlasState = useAtlasMode(
+    generatedAtlas || null,
+    atlasMousePosition.x,
+    atlasMousePosition.y,
+    containerDimensions.width,
+    containerDimensions.height,
+    atlasConfig
+  )
+
   // Initialize depth inference if needed
   useEffect(() => {
     console.log('[Viewer] Depth inference effect triggered:', { 
@@ -456,9 +469,12 @@ export default function Viewer({
 
   // Handle atlas mode texture updates (when atlas image changes)
   useEffect(() => {
-    if (!currentAtlasImageUrl || !sceneStateRef.current || !generatedAtlas) {
+    if (!atlasState.currentImageUrl || !sceneStateRef.current || !generatedAtlas) {
       return
     }
+
+    // Capture the URL to avoid TypeScript null check issues in async function
+    const imageUrl = atlasState.currentImageUrl
 
     const loadAtlasTexture = async () => {
       try {
@@ -466,7 +482,7 @@ export default function Viewer({
         const loader = new THREE.TextureLoader()
         const newTexture = await new Promise<THREE.Texture>((resolve, reject) => {
           loader.load(
-            currentAtlasImageUrl,
+            imageUrl,
             (texture) => {
               // Configure texture properties
               texture.flipY = true
@@ -491,7 +507,7 @@ export default function Viewer({
         atlasTextureRef.current = newTexture
         if (sceneStateRef.current?.material?.uniforms?.map) {
           sceneStateRef.current.material.uniforms.map.value = newTexture
-          sceneStateRef.current.material.needsUpdate = true
+          sceneStateRef.current.material.uniformsNeedUpdate = true
         }
       } catch (err) {
         console.warn('Error loading atlas texture:', err)
@@ -503,7 +519,7 @@ export default function Viewer({
     return () => {
       // Don't dispose here - texture is reused in next update
     }
-  }, [currentAtlasImageUrl, generatedAtlas])
+  }, [atlasState, generatedAtlas])
 
   // Track container dimensions for atlas mode
   useEffect(() => {
@@ -586,27 +602,6 @@ export default function Viewer({
       containerRef.current?.removeEventListener('touchmove', handleTouchMove)
     }
   }, [generatedAtlas])
-
-  // Memoize atlas config to prevent infinite re-renders
-  const atlasConfig = useMemo(
-    () => ({
-      min: ATLAS_CONFIG.min,
-      max: ATLAS_CONFIG.max,
-      step: ATLAS_CONFIG.step,
-      fallbackImage: ATLAS_CONFIG.fallbackImage
-    }),
-    [] // ATLAS_CONFIG is constant from config.ts, so dependencies are stable
-  )
-
-  // Use atlas mode hook to get current image
-  const atlasState = useAtlasMode(
-    generatedAtlas || null,
-    atlasMousePosition.x,
-    atlasMousePosition.y,
-    containerDimensions.width,
-    containerDimensions.height,
-    atlasConfig
-  )
 
   // Update current atlas image URL and grid coordinates when atlas state changes
   useEffect(() => {
