@@ -522,39 +522,62 @@ export default function Viewer({
     // Initial update
     updateDimensions()
 
-    // Update on window resize
-    window.addEventListener('resize', updateDimensions)
+    // Debounced window resize
+    let resizeTimeout: NodeJS.Timeout | null = null
+    const handleWindowResize = () => {
+      if (resizeTimeout) clearTimeout(resizeTimeout)
+      resizeTimeout = setTimeout(updateDimensions, 100)
+    }
+
+    window.addEventListener('resize', handleWindowResize)
+
+    // ResizeObserver for container changes
+    const resizeObserver = new ResizeObserver(() => {
+      if (resizeTimeout) clearTimeout(resizeTimeout)
+      resizeTimeout = setTimeout(updateDimensions, 100)
+    })
+
+    resizeObserver.observe(containerRef.current)
 
     return () => {
-      window.removeEventListener('resize', updateDimensions)
+      window.removeEventListener('resize', handleWindowResize)
+      resizeObserver.disconnect()
+      if (resizeTimeout) clearTimeout(resizeTimeout)
     }
-  }, [sceneReady])
+  }, []) // Empty dependency - attach once on mount and never re-attach
 
-  // Track cursor position for atlas mode
+  // Track cursor position for atlas mode (throttled to avoid excessive updates)
   useEffect(() => {
     if (!containerRef.current || !generatedAtlas) {
       return
     }
 
+    let lastUpdateTime = 0
+    const throttleMs = 16 // ~60fps
+
+    const updateAtlasPosition = (x: number, y: number) => {
+      const now = Date.now()
+      if (now - lastUpdateTime > throttleMs) {
+        setAtlasMousePosition({ x, y })
+        lastUpdateTime = now
+      }
+    }
+
     const handleMouseMove = (event: MouseEvent) => {
       const rect = containerRef.current!.getBoundingClientRect()
-      const pos = {
-        x: event.clientX - rect.left,
-        y: event.clientY - rect.top
-      }
-      mousePositionRef.current = pos
-      setAtlasMousePosition(pos)
+      const x = event.clientX - rect.left
+      const y = event.clientY - rect.top
+      mousePositionRef.current = { x, y }
+      updateAtlasPosition(x, y)
     }
 
     const handleTouchMove = (event: TouchEvent) => {
       if (event.touches.length === 0) return
       const rect = containerRef.current!.getBoundingClientRect()
-      const pos = {
-        x: event.touches[0].clientX - rect.left,
-        y: event.touches[0].clientY - rect.top
-      }
-      mousePositionRef.current = pos
-      setAtlasMousePosition(pos)
+      const x = event.touches[0].clientX - rect.left
+      const y = event.touches[0].clientY - rect.top
+      mousePositionRef.current = { x, y }
+      updateAtlasPosition(x, y)
     }
 
     containerRef.current.addEventListener('mousemove', handleMouseMove)
