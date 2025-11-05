@@ -63,6 +63,13 @@ export interface SceneState {
   renderer: THREE.WebGLRenderer
   mesh: THREE.Mesh
   material: THREE.ShaderMaterial
+  dispose: () => void
+}
+
+export interface SceneConfig {
+  portraitWidth: number
+  portraitHeight: number
+  initialSubdivisions?: number
 }
 
 /**
@@ -72,8 +79,10 @@ export function createScene(
   container: HTMLDivElement,
   portraitTexture: THREE.Texture,
   depthTexture: THREE.Texture,
-  initialSubdivisions = CONFIG.meshSubdivisions
+  config: SceneConfig
 ): SceneState {
+  const { portraitWidth, portraitHeight, initialSubdivisions = CONFIG.meshSubdivisions } = config
+
   // Scene
   const scene = new THREE.Scene()
   scene.background = new THREE.Color(0x1a1a1a)
@@ -107,6 +116,17 @@ export function createScene(
 
   // Mesh
   const mesh = new THREE.Mesh(geometry, material)
+
+  // Scale mesh to match portrait aspect ratio so the image is not stretched
+  if (portraitWidth > 0 && portraitHeight > 0) {
+    const aspect = portraitWidth / portraitHeight
+    if (aspect >= 1) {
+      mesh.scale.set(aspect, 1, 1)
+    } else {
+      mesh.scale.set(1, 1 / aspect, 1)
+    }
+  }
+
   scene.add(mesh)
 
   // Handle resize
@@ -119,12 +139,25 @@ export function createScene(
   }
   window.addEventListener('resize', handleResize)
 
+  const dispose = () => {
+    window.removeEventListener('resize', handleResize)
+    if (container.contains(renderer.domElement)) {
+      container.removeChild(renderer.domElement)
+    }
+    renderer.dispose()
+    material.dispose()
+    mesh.geometry.dispose()
+    portraitTexture.dispose()
+    depthTexture.dispose()
+  }
+
   return {
     scene,
     camera,
     renderer,
     mesh,
-    material
+    material,
+    dispose
   }
 }
 

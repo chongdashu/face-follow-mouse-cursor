@@ -34,5 +34,9 @@ export const CONFIG = {
   // Performance thresholds
   targetFPS: 60,
   frameTimeThreshold: 16.7, // ms
+  
+  // Debug: skip model loading and use fallback immediately
+  // Set to true to test without ONNX model
+  useFallbackOnly: false,
 } as const;
 

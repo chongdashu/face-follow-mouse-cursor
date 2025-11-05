@@ -18,6 +18,7 @@ interface ViewerProps {
  * Viewer component that renders the 3D scene with depth parallax
  */
 export default function Viewer({ portraitImage, depthMap, onDepthReady, onReset }: ViewerProps) {
+
   const containerRef = useRef<HTMLDivElement>(null)
   const sceneStateRef = useRef<ReturnType<typeof createScene> | null>(null)
   const cursorMapperRef = useRef<CursorMapper>(new CursorMapper())
@@ -31,22 +32,57 @@ export default function Viewer({ portraitImage, depthMap, onDepthReady, onReset 
   const [showDebug, setShowDebug] = useState(false)
   const [currentRotation, setCurrentRotation] = useState({ yaw: 0, pitch: 0 })
   const [fps, setFps] = useState(0)
+  const [sceneReady, setSceneReady] = useState(false)
 
   // Initialize depth inference if needed
   useEffect(() => {
-    if (depthMap || !portraitImage) return
+    console.log('[Viewer] Depth inference effect triggered:', { 
+      hasDepthMap: !!depthMap, 
+      hasPortrait: !!portraitImage 
+    })
+    
+    if (depthMap || !portraitImage) {
+      console.log('[Viewer] Skipping depth inference:', { 
+        reason: depthMap ? 'depthMap exists' : 'no portraitImage' 
+      })
+      return
+    }
 
+    console.log('[Viewer] Starting depth inference...')
     const runDepthInference = async () => {
       try {
         setIsProcessing(true)
         setError(null)
 
+        // Check if we should skip model loading (for testing)
+        if (CONFIG.useFallbackOnly) {
+          console.log('Skipping model loading (useFallbackOnly=true), using fallback depth map')
+          throw new Error('Using fallback depth map (debug mode)')
+        }
+
         // For PoC, we'll use a placeholder or try to load a model
         // In production, you'd have a model file in public/models/
         const modelPath = '/models/depth-anything-v2-small.onnx'
         
+        console.log('Attempting to load ONNX model from:', modelPath)
+        
+        // First, check if model file exists
+        try {
+          const response = await fetch(modelPath, { method: 'HEAD' })
+          if (!response.ok) {
+            console.warn(`Model file not found (status: ${response.status}). Using fallback depth map.`)
+            throw new Error(`Model file not found at ${modelPath}. Using fallback depth map.`)
+          }
+          console.log('Model file found, initializing ONNX Runtime...')
+        } catch (fetchError) {
+          console.warn('Model file check failed, using fallback depth map:', fetchError)
+          throw new Error('Model file not found. Using fallback depth map.')
+        }
+        
         const runner = new OnnxDepthRunner()
+        console.log('Initializing ONNX Runtime...')
         await runner.initialize(modelPath)
+        console.log('ONNX Runtime initialized successfully')
 
         // Convert image to ImageData
         const canvas = document.createElement('canvas')
@@ -67,14 +103,30 @@ export default function Viewer({ portraitImage, depthMap, onDepthReady, onReset 
           onDepthReady(result.imageData)
         }
       } catch (err) {
-        console.error('Depth inference error:', err)
-        setError(err instanceof Error ? err.message : 'Failed to generate depth map')
-        // Fallback: create a simple depth map
-        const fallbackDepth = createFallbackDepth(portraitImage.width, portraitImage.height)
-        if (onDepthReady) {
-          onDepthReady(fallbackDepth)
+        console.warn('Depth inference error, using fallback:', err)
+        const errorMessage = err instanceof Error ? err.message : 'Failed to generate depth map'
+        setError(errorMessage)
+        
+        // Always provide fallback depth map
+        try {
+          console.log('[Viewer] Creating fallback depth map...')
+          const fallbackDepth = createFallbackDepth(portraitImage.width, portraitImage.height)
+          console.log('[Viewer] Fallback depth map created:', {
+            width: fallbackDepth.width,
+            height: fallbackDepth.height
+          })
+          if (onDepthReady) {
+            console.log('[Viewer] Calling onDepthReady with fallback depth map')
+            onDepthReady(fallbackDepth)
+          } else {
+            console.warn('[Viewer] onDepthReady callback not provided!')
+          }
+        } catch (fallbackError) {
+          console.error('[Viewer] Failed to create fallback depth map:', fallbackError)
+          setError('Failed to process image. Please try again.')
         }
       } finally {
+        console.log('[Viewer] Depth inference complete, setting isProcessing to false')
         setIsProcessing(false)
       }
     }
@@ -84,47 +136,176 @@ export default function Viewer({ portraitImage, depthMap, onDepthReady, onReset 
 
   // Initialize Three.js scene
   useEffect(() => {
-    if (!containerRef.current || !portraitImage || !depthMap) return
+    console.log('[Viewer] Scene initialization effect triggered:', {
+      hasContainer: !!containerRef.current,
+      hasPortrait: !!portraitImage,
+      hasDepthMap: !!depthMap,
+      containerDimensions: containerRef.current ? {
+        width: containerRef.current.clientWidth,
+        height: containerRef.current.clientHeight
+      } : 'no container'
+    })
+    
+    if (!containerRef.current || !portraitImage || !depthMap) {
+      console.log('[Viewer] Skipping scene init:', {
+        missingContainer: !containerRef.current,
+        missingPortrait: !portraitImage,
+        missingDepthMap: !depthMap
+      })
+      return
+    }
 
-    try {
-      // Create textures
-      const portraitTexture = new THREE.TextureLoader().load(portraitImage.src)
-      portraitTexture.flipY = false
+    let state: ReturnType<typeof createScene> | null = null
+    let portraitTexture: THREE.Texture | null = null
+    let depthTexture: THREE.Texture | null = null
+    let isMounted = true
 
-      const depthCanvas = document.createElement('canvas')
-      depthCanvas.width = depthMap.width
-      depthCanvas.height = depthMap.height
-      const depthCtx = depthCanvas.getContext('2d')
-      if (!depthCtx) throw new Error('Could not get depth canvas context')
-      depthCtx.putImageData(depthMap, 0, 0)
-      const depthTexture = new THREE.Texture(depthCanvas)
-      depthTexture.flipY = false
-      depthTexture.needsUpdate = true
-
-      // Create scene
-      const state = createScene(
-        containerRef.current,
-        portraitTexture,
-        depthTexture,
-        CONFIG.meshSubdivisions
-      )
-      sceneStateRef.current = state
-
-      // Cleanup
-      return () => {
-        if (animationFrameRef.current) {
-          cancelAnimationFrame(animationFrameRef.current)
+    const initScene = async () => {
+      try {
+        console.log('[Viewer] ===== Starting Three.js scene initialization =====')
+        console.log('[Viewer] Portrait image src:', portraitImage.src)
+        console.log('[Viewer] Portrait image dimensions:', portraitImage.width, 'x', portraitImage.height)
+        console.log('[Viewer] Portrait image complete:', portraitImage.complete)
+        console.log('[Viewer] Portrait image naturalWidth:', portraitImage.naturalWidth)
+        console.log('[Viewer] Depth map dimensions:', depthMap.width, 'x', depthMap.height)
+        
+        // Ensure image is loaded
+        if (!portraitImage.complete || portraitImage.naturalWidth === 0) {
+          console.log('[Viewer] Waiting for portrait image to load...')
+          await new Promise<void>((resolve, reject) => {
+            const img = portraitImage!
+            if (img.complete) {
+              console.log('[Viewer] Portrait image already complete')
+              resolve()
+            } else {
+              console.log('[Viewer] Setting up load handlers for portrait image')
+              img.onload = () => {
+                console.log('[Viewer] Portrait image loaded via onload handler')
+                resolve()
+              }
+              img.onerror = () => {
+                console.error('[Viewer] Portrait image failed to load')
+                reject(new Error('Failed to load portrait image'))
+              }
+            }
+          })
+        } else {
+          console.log('[Viewer] Portrait image already loaded')
         }
-        state.renderer.dispose()
-        portraitTexture.dispose()
-        depthTexture.dispose()
-        if (depthRunnerRef.current) {
-          depthRunnerRef.current.dispose()
+
+        // Create portrait texture using canvas (immediate availability)
+        const portraitCanvas = document.createElement('canvas')
+        portraitCanvas.width = portraitImage.width
+        portraitCanvas.height = portraitImage.height
+        const portraitCtx = portraitCanvas.getContext('2d')
+        if (!portraitCtx) {
+          throw new Error('Could not get portrait canvas context')
+        }
+        portraitCtx.drawImage(portraitImage, 0, 0, portraitCanvas.width, portraitCanvas.height)
+        portraitTexture = new THREE.CanvasTexture(portraitCanvas)
+        portraitTexture.flipY = true
+        portraitTexture.needsUpdate = true
+        portraitTexture.colorSpace = THREE.SRGBColorSpace
+        console.log('[Viewer] Portrait texture created via canvas:', {
+          width: portraitCanvas.width,
+          height: portraitCanvas.height
+        })
+
+        if (!isMounted) {
+          portraitTexture.dispose()
+          return
+        }
+
+        // Create depth texture from ImageData (synchronous)
+        const depthCanvas = document.createElement('canvas')
+        depthCanvas.width = depthMap.width
+        depthCanvas.height = depthMap.height
+        const depthCtx = depthCanvas.getContext('2d')
+        if (!depthCtx) throw new Error('Could not get depth canvas context')
+        depthCtx.putImageData(depthMap, 0, 0)
+        depthTexture = new THREE.CanvasTexture(depthCanvas)
+        depthTexture.flipY = true
+        depthTexture.needsUpdate = true
+        depthTexture.colorSpace = THREE.LinearSRGBColorSpace
+        console.log('[Viewer] Depth texture created via canvas:', {
+          width: depthCanvas.width,
+          height: depthCanvas.height
+        })
+
+        if (!isMounted) {
+          portraitTexture.dispose()
+          depthTexture.dispose()
+          return
+        }
+
+        // Create scene
+        console.log('[Viewer] Creating Three.js scene...')
+        state = createScene(
+          containerRef.current!,
+          portraitTexture!,
+          depthTexture!,
+          {
+            portraitWidth: portraitImage.width,
+            portraitHeight: portraitImage.height,
+            initialSubdivisions: CONFIG.meshSubdivisions
+          }
+        )
+        sceneStateRef.current = state
+        if (isMounted) {
+          state.renderer.render(state.scene, state.camera)
+          setSceneReady(true)
+        }
+        console.log('[Viewer] ===== Scene initialized successfully =====')
+        console.log('[Viewer] Scene state:', {
+          hasRenderer: !!state.renderer,
+          hasMaterial: !!state.material,
+          hasMesh: !!state.mesh,
+          containerChildren: containerRef.current!.children.length
+        })
+
+      } catch (err) {
+        console.error('[Viewer] ===== Scene initialization ERROR =====')
+        console.error('[Viewer] Error details:', err)
+        console.error('[Viewer] Error stack:', err instanceof Error ? err.stack : 'No stack')
+        if (isMounted) {
+          const errorMsg = err instanceof Error ? err.message : 'Failed to initialize scene'
+          console.error('[Viewer] Setting error state:', errorMsg)
+          setError(errorMsg)
         }
       }
-    } catch (err) {
-      console.error('Scene initialization error:', err)
-      setError(err instanceof Error ? err.message : 'Failed to initialize scene')
+    }
+
+    initScene()
+
+    // Cleanup
+    return () => {
+      console.log('[Viewer] Cleaning up Three.js scene...')
+      isMounted = false
+
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current)
+        animationFrameRef.current = undefined
+      }
+
+      setSceneReady(false)
+
+      if (state) {
+        state.dispose()
+      } else {
+        if (portraitTexture) {
+          portraitTexture.dispose()
+        }
+        if (depthTexture) {
+          depthTexture.dispose()
+        }
+      }
+
+      if (depthRunnerRef.current) {
+        depthRunnerRef.current.dispose()
+        depthRunnerRef.current = null
+      }
+
+      sceneStateRef.current = null
     }
   }, [portraitImage, depthMap])
 
@@ -177,7 +358,9 @@ export default function Viewer({ portraitImage, depthMap, onDepthReady, onReset 
 
   // Animation loop
   useEffect(() => {
-    if (!sceneStateRef.current) return
+    if (!sceneReady || !sceneStateRef.current) {
+      return
+    }
 
     const state = sceneStateRef.current
     let lastTime = performance.now()
@@ -216,9 +399,10 @@ export default function Viewer({ portraitImage, depthMap, onDepthReady, onReset 
     return () => {
       if (animationFrameRef.current) {
         cancelAnimationFrame(animationFrameRef.current)
+        animationFrameRef.current = undefined
       }
     }
-  }, [])
+  }, [sceneReady])
 
   // Update intensity (depth scale)
   useEffect(() => {
@@ -270,13 +454,28 @@ export default function Viewer({ portraitImage, depthMap, onDepthReady, onReset 
     )
   }
 
-  if (error) {
+  if (error && !depthMap) {
+    // If we have an error but no depth map yet, show error
+    // Otherwise, if we have depthMap (from fallback), show viewer
     return (
       <div className="viewer-container">
         <div className="error-overlay">
           <p>Error: {error}</p>
           <p className="error-hint">Using fallback depth map</p>
         </div>
+      </div>
+    )
+  }
+
+  // Show viewer if we have depthMap (either from model or fallback)
+  if (depthMap) {
+    return (
+      <div className="viewer-container">
+        {error && (
+          <div className="error-banner">
+            <p>⚠️ {error}</p>
+          </div>
+        )}
         <div ref={containerRef} className="viewer-canvas" />
         <Controls
           intensity={intensity}
@@ -293,21 +492,7 @@ export default function Viewer({ portraitImage, depthMap, onDepthReady, onReset 
     )
   }
 
-  return (
-    <div className="viewer-container">
-      <div ref={containerRef} className="viewer-canvas" />
-      <Controls
-        intensity={intensity}
-        smoothing={smoothing}
-        showDebug={showDebug}
-        onIntensityChange={setIntensity}
-        onSmoothingChange={setSmoothing}
-        onToggleDebug={() => setShowDebug(!showDebug)}
-        onReset={onReset}
-        rotation={currentRotation}
-        fps={fps}
-      />
-    </div>
-  )
+  // Should not reach here, but fallback
+  return null
 }
 
