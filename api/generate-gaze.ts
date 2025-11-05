@@ -73,7 +73,7 @@ export default async function handler(
     // Convert base64 to data URL if needed
     const imageData = image.startsWith('data:') ? image : `data:image/jpeg;base64,${image}`
 
-    // Create prediction on Replicate
+    // Create prediction on Replicate using kylan02/face-looker model
     const predictionResponse = await fetch('https://api.replicate.com/v1/predictions', {
       method: 'POST',
       headers: {
@@ -81,11 +81,12 @@ export default async function handler(
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        version: 'fofr/expression-editor:latest', // or specific version
+        version: 'kylan02/face-looker', // Use the correct face-looker model
         input: {
           image: imageData,
-          pupil_x: px,
-          pupil_y: py,
+          px: px,        // Changed from pupil_x to px
+          py: py,        // Changed from pupil_y to py
+          image_size: 256, // Output image size
         },
       }),
     })
