@@ -420,18 +420,16 @@ export default function Viewer({
       // Always update mousePositionRef for depth parallax
       mousePositionRef.current = { x, y }
 
-      // Update depth parallax uniforms (only when not in atlas mode)
+      // Update depth parallax uniforms (works in both modes now)
       const rotation = cursorMapperRef.current.map(
         x,
         y,
         rect.width,
         rect.height
       )
-      // In atlas mode, images already encode gaze angle, so don't apply depth parallax
-      if (!generatedAtlas) {
-        material.uniforms.yaw.value = rotation.yaw
-        material.uniforms.pitch.value = rotation.pitch
-      }
+      // Apply depth parallax in all modes - in atlas mode it adds subtle 3D effect
+      material.uniforms.yaw.value = rotation.yaw
+      material.uniforms.pitch.value = rotation.pitch
       setCurrentRotation(rotation)
 
       // Update atlas coordinates if atlas mode is active
