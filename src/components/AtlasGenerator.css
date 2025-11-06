@@ -153,3 +153,56 @@
   margin-top: 1rem;
 }
 
+.atlas-cache-status {
+  background: #f5f9ff;
+  border: 1px solid #d0e4ff;
+  border-radius: 8px;
+  padding: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.cache-status-header {
+  font-weight: 600;
+  margin: 0 0 0.5rem 0;
+  color: #333;
+}
+
+.cache-status-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.cache-status-list li {
+  padding: 0.5rem;
+  margin: 0.25rem 0;
+  border-radius: 4px;
+  font-family: monospace;
+  font-size: 0.95rem;
+}
+
+.cache-status-list li.cache-hit {
+  background: #e8f5e9;
+  color: #2e7d32;
+}
+
+.cache-status-list li.cache-miss {
+  background: #fff3e0;
+  color: #e65100;
+}
+
+.atlas-cache-check {
+  text-align: center;
+  padding: 1rem;
+  color: #666;
+  font-style: italic;
+}
+
+.button-badge {
+  background: rgba(255, 255, 255, 0.3);
+  padding: 0.2rem 0.5rem;
+  border-radius: 12px;
+  font-size: 0.85rem;
+  margin-left: 0.5rem;
+}
+

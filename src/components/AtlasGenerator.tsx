@@ -21,7 +21,15 @@ export default function AtlasGenerator({
   const [progress, setProgress] = useState({ completed: 0, total: 121, cached: 0 })
   const [error, setError] = useState<string | null>(null)
   const [generatedImages, setGeneratedImages] = useState<Map<string, string> | null>(null)
-  const [cacheStatus, setCacheStatus] = useState<{ total: number; cached: number } | null>(null)
+  const [cacheStatus, setCacheStatus] = useState<{
+    full: { total: number; cached: number } | null
+    test: { total: number; cached: number } | null
+    ultra: { total: number; cached: number } | null
+  }>({
+    full: null,
+    test: null,
+    ultra: null
+  })
   const [isCheckingCache, setIsCheckingCache] = useState(false)
 
   /**
@@ -31,10 +39,24 @@ export default function AtlasGenerator({
     const checkCache = async () => {
       setIsCheckingCache(true)
       try {
-        // Check cache for default 11x11 atlas
-        const status = await checkAtlasCache(portraitImage, -15, 15, 3)
-        setCacheStatus(status)
-        console.log('[ATLAS-GEN] Cache status:', status)
+        // Check cache for all three configurations in parallel
+        const [fullStatus, testStatus, ultraStatus] = await Promise.all([
+          checkAtlasCache(portraitImage, -15, 15, 3),   // 121 images
+          checkAtlasCache(portraitImage, -12, 12, 6),   // 25 images
+          checkAtlasCache(portraitImage, -8, 8, 8),     // 9 images
+        ])
+
+        setCacheStatus({
+          full: fullStatus,
+          test: testStatus,
+          ultra: ultraStatus
+        })
+
+        console.log('[ATLAS-GEN] Cache status:', {
+          full: `${fullStatus.cached}/${fullStatus.total}`,
+          test: `${testStatus.cached}/${testStatus.total}`,
+          ultra: `${ultraStatus.cached}/${ultraStatus.total}`
+        })
       } catch (error) {
         console.warn('[ATLAS-GEN] Failed to check cache:', error)
       } finally {
@@ -165,22 +187,26 @@ export default function AtlasGenerator({
         </div>
       )}
 
-      {cacheStatus && !isGenerating && (
+      {(cacheStatus.full || cacheStatus.test || cacheStatus.ultra) && !isGenerating && (
         <div className="atlas-cache-status">
-          {cacheStatus.cached > 0 ? (
-            <>
-              <p className="cache-hit">
-                ✅ {cacheStatus.cached}/{cacheStatus.total} images already cached
-              </p>
-              <p className="cache-hint">
-                Cached images will load instantly. Only {cacheStatus.total - cacheStatus.cached} new images need generation.
-              </p>
-            </>
-          ) : (
-            <p className="cache-miss">
-              No cached images found. All {cacheStatus.total} images will be generated.
-            </p>
-          )}
+          <p className="cache-status-header">Cache Status:</p>
+          <ul className="cache-status-list">
+            {cacheStatus.full && (
+              <li className={cacheStatus.full.cached > 0 ? 'cache-hit' : 'cache-miss'}>
+                Full (121): {cacheStatus.full.cached > 0 ? '✅' : '❌'} {cacheStatus.full.cached}/{cacheStatus.full.total} cached
+              </li>
+            )}
+            {cacheStatus.test && (
+              <li className={cacheStatus.test.cached > 0 ? 'cache-hit' : 'cache-miss'}>
+                Test (25): {cacheStatus.test.cached > 0 ? '✅' : '❌'} {cacheStatus.test.cached}/{cacheStatus.test.total} cached
+              </li>
+            )}
+            {cacheStatus.ultra && (
+              <li className={cacheStatus.ultra.cached > 0 ? 'cache-hit' : 'cache-miss'}>
+                Ultra (9): {cacheStatus.ultra.cached > 0 ? '✅' : '❌'} {cacheStatus.ultra.cached}/{cacheStatus.ultra.total} cached
+              </li>
+            )}
+          </ul>
         </div>
       )}
 
@@ -213,8 +239,8 @@ export default function AtlasGenerator({
             onClick={handleGenerate}
           >
             Generate Full Atlas (121 images)
-            {cacheStatus && cacheStatus.cached > 0 && (
-              <span className="button-badge"> {cacheStatus.cached} cached</span>
+            {cacheStatus.full && cacheStatus.full.cached > 0 && (
+              <span className="button-badge"> {cacheStatus.full.cached} cached</span>
             )}
           </button>
           <button
@@ -222,12 +248,18 @@ export default function AtlasGenerator({
             onClick={handleTestGenerate}
           >
             Test Generation (25 images)
+            {cacheStatus.test && cacheStatus.test.cached > 0 && (
+              <span className="button-badge"> {cacheStatus.test.cached} cached</span>
+            )}
           </button>
           <button
             className="atlas-button atlas-button-secondary"
             onClick={handleUltraTestGenerate}
           >
             Ultra Test (9 images)
+            {cacheStatus.ultra && cacheStatus.ultra.cached > 0 && (
+              <span className="button-badge"> {cacheStatus.ultra.cached} cached</span>
+            )}
           </button>
           {onCancel && (
             <button
