@@ -161,7 +161,8 @@ export function cursorToGridCoords(
 
   // Normalize cursor (0 to 1)
   const normalizedX = containerWidth > 0 ? cursorX / containerWidth : 0
-  const normalizedY = containerHeight > 0 ? cursorY / containerHeight : 0
+  // Invert Y since screen Y increases downward but we want positive py to look up
+  const normalizedY = containerHeight > 0 ? 1 - (cursorY / containerHeight) : 0
 
   // Map to grid coordinates
   const px = Math.round((normalizedX * (max - min) + min) / step) * step
