@@ -93,21 +93,7 @@ function App() {
   // Show upload and processing
   return (
     <div className="app">
-      <Upload onImageUpload={handleImageUpload} />
-
-      {/* Show generator modal when triggered */}
-      {showAtlasGenerator && portraitImage && (
-        <div className="atlas-generator-overlay">
-          <div className="atlas-generator-container">
-            <AtlasGenerator
-              portraitImage={portraitImage}
-              onAtlasGenerated={handleAtlasGenerated}
-              onCancel={handleCancelGeneration}
-            />
-          </div>
-        </div>
-      )}
-
+      {/* Show Viewer in background when processing */}
       {isProcessing && portraitImage && (
         <Viewer
           portraitImage={portraitImage}
@@ -122,6 +108,24 @@ function App() {
             setIsProcessing(false)
           }}
         />
+      )}
+
+      {/* Overlay Upload component when processing */}
+      <div className={isProcessing && portraitImage ? 'upload-overlay' : ''}>
+        <Upload onImageUpload={handleImageUpload} />
+      </div>
+
+      {/* Show generator modal when triggered */}
+      {showAtlasGenerator && portraitImage && (
+        <div className="atlas-generator-overlay">
+          <div className="atlas-generator-container">
+            <AtlasGenerator
+              portraitImage={portraitImage}
+              onAtlasGenerated={handleAtlasGenerated}
+              onCancel={handleCancelGeneration}
+            />
+          </div>
+        </div>
       )}
     </div>
   )

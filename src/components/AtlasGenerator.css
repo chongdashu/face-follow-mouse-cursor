@@ -167,6 +167,21 @@
   color: #333;
 }
 
+.cache-hash-display {
+  font-size: 0.85rem;
+  color: #666;
+  margin: 0.5rem 0;
+  font-family: monospace;
+  background: #f5f5f5;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+}
+
+.cache-hash-display code {
+  color: #0066cc;
+  font-weight: 600;
+}
+
 .cache-status-list {
   list-style: none;
   padding: 0;

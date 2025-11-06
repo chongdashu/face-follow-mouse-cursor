@@ -53,6 +53,7 @@ export default function AtlasGenerator({
         })
 
         console.log('[ATLAS-GEN] Cache status:', {
+          imageHash: fullStatus.imageHash.substring(0, 16) + '...',
           full: `${fullStatus.cached}/${fullStatus.total}`,
           test: `${testStatus.cached}/${testStatus.total}`,
           ultra: `${ultraStatus.cached}/${ultraStatus.total}`
@@ -190,6 +191,11 @@ export default function AtlasGenerator({
       {(cacheStatus.full || cacheStatus.test || cacheStatus.ultra) && !isGenerating && (
         <div className="atlas-cache-status">
           <p className="cache-status-header">Cache Status:</p>
+          {cacheStatus.full && (
+            <p className="cache-hash-display">
+              Image Hash: <code>{cacheStatus.full.imageHash.substring(0, 16)}...</code>
+            </p>
+          )}
           <ul className="cache-status-list">
             {cacheStatus.full && (
               <li className={cacheStatus.full.cached > 0 ? 'cache-hit' : 'cache-miss'}>

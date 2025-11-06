@@ -38,6 +38,19 @@ export const CONFIG = {
   // Debug: skip model loading and use fallback immediately
   // Set to true to test without ONNX model
   useFallbackOnly: false,
+
+  // Model path configuration
+  // For local development: '/models/depth-anything-v2-small.onnx'
+  // For production (CDN): Use Hugging Face CDN URL or Vercel Blob URL
+  // Leave empty to try local first, then fallback to CDN
+  modelPath: '', // Empty = auto-detect (local first, then CDN)
+  
+  // CDN fallback URL (used if local model not found)
+  // Hugging Face CDN URLs for Depth Anything V2 models:
+  // - Small (recommended for web): https://huggingface.co/onnx-community/depth-anything-v2-small/resolve/main/onnx/model.onnx
+  // - Large q4f16 (235MB, best balance): https://huggingface.co/onnx-community/depth-anything-v2-large/resolve/main/onnx/model_q4f16.onnx
+  // - Large fp16 (669MB, high quality): https://huggingface.co/onnx-community/depth-anything-v2-large/resolve/main/onnx/model_fp16.onnx
+  modelCdnUrl: 'https://huggingface.co/onnx-community/depth-anything-v2-small/resolve/main/onnx/model.onnx',
 } as const;
 
 /**

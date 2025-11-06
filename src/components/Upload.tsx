@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react'
 import { CONFIG } from '../config'
+import { EXAMPLE_PORTRAITS } from '../lib/examplePortraits'
 import './Upload.css'
 
 interface UploadProps {
@@ -95,17 +96,18 @@ export default function Upload({ onImageUpload }: UploadProps) {
   }
 
   /**
-   * Load and use the default profile image
+   * Load and use an example portrait image from URL
+   * Applies same resizing logic as file upload
    */
-  const handleQuickLoad = async () => {
+  const handleExampleLoad = async (imageUrl: string) => {
     try {
       const img = new Image()
       img.crossOrigin = 'anonymous'
       
       await new Promise<void>((resolve, reject) => {
         img.onload = () => resolve()
-        img.onerror = () => reject(new Error('Failed to load default image'))
-        img.src = '/aioriented-profile.png'
+        img.onerror = () => reject(new Error('Failed to load example image'))
+        img.src = imageUrl
       })
 
       // Apply same resizing logic as file upload
@@ -134,8 +136,8 @@ export default function Upload({ onImageUpload }: UploadProps) {
 
       onImageUpload(resizedImg)
     } catch (error) {
-      console.error('Error loading default image:', error)
-      alert('Failed to load default image. Please try again.')
+      console.error('Error loading example image:', error)
+      alert('Failed to load example image. Please try again.')
     }
   }
 
@@ -175,10 +177,32 @@ export default function Upload({ onImageUpload }: UploadProps) {
           <p className="upload-hint">Supports JPG, PNG, and WebP (max {CONFIG.maxImageWidth}px width)</p>
         </div>
       </div>
-      <button className="quick-load-button" onClick={(e) => { e.stopPropagation(); handleQuickLoad(); }}>
-        <span className="quick-load-icon">✨</span>
-        <span>Try Example Image</span>
-      </button>
+      <div className="example-portraits-section">
+        <p className="example-portraits-callout">Or try one of these images...</p>
+        <div className="example-portraits-grid">
+          {EXAMPLE_PORTRAITS.map((portrait, index) => (
+            <button
+              key={index}
+              className="example-portrait-card"
+              onClick={(e) => {
+                e.stopPropagation()
+                handleExampleLoad(portrait.url)
+              }}
+              title={portrait.photographer ? `Photo by ${portrait.photographer}` : portrait.name}
+            >
+              <img
+                src={portrait.url}
+                alt={portrait.name}
+                className="example-portrait-image"
+                crossOrigin="anonymous"
+              />
+              <div className="example-portrait-overlay">
+                <span className="example-portrait-name">{portrait.name}</span>
+              </div>
+            </button>
+          ))}
+        </div>
+      </div>
     </div>
   )
 }

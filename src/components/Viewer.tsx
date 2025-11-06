@@ -46,6 +46,7 @@ export default function Viewer({
 
   const [isProcessing, setIsProcessing] = useState(!depthMap)
   const [error, setError] = useState<string | null>(null)
+  const [modelStatus, setModelStatus] = useState<'loading' | 'loaded' | 'fallback' | null>(null)
   const [intensity, setIntensity] = useState(100)
   const [smoothing, setSmoothing] = useState(50)
   const [yawRange, setYawRange] = useState<number>(CONFIG.yawRange)
@@ -161,17 +162,34 @@ export default function Viewer({
           throw new Error('Using fallback depth map (debug mode)')
         }
 
-        const modelPath = '/models/depth-anything-v2-small.onnx'
-
-        // First, check if model file exists
-        try {
-          const response = await fetch(modelPath, { method: 'HEAD' })
-          if (!response.ok) {
-            throw new Error(`Model file not found at ${modelPath}. Using fallback depth map.`)
+        // Determine model path: use configured path, or try local then CDN
+        let modelPath = CONFIG.modelPath
+        
+        if (!modelPath) {
+          // Auto-detect: try local first, then CDN
+          const localPath = '/models/depth-anything-v2-small.onnx'
+          try {
+            const response = await fetch(localPath, { method: 'HEAD' })
+            if (response.ok) {
+              modelPath = localPath
+              console.log('[DEPTH] Using local model:', modelPath)
+            } else {
+              throw new Error('Local model not found')
+            }
+          } catch (fetchError) {
+            // Local model not found, use CDN fallback
+            if (CONFIG.modelCdnUrl) {
+              modelPath = CONFIG.modelCdnUrl
+              console.log('[DEPTH] Local model not found, using CDN:', modelPath)
+            } else {
+              throw new Error('Model file not found. Using fallback depth map.')
+            }
           }
-        } catch (fetchError) {
-          throw new Error('Model file not found. Using fallback depth map.')
+        } else {
+          console.log('[DEPTH] Using configured model path:', modelPath)
         }
+
+        setModelStatus('loading')
 
         // Check if effect was cancelled before proceeding
         if (isCancelled) return
@@ -212,6 +230,7 @@ export default function Viewer({
         }
 
         depthRunnerRef.current = runner
+        setModelStatus('loaded')
         if (onDepthReady) {
           onDepthReady(result.imageData)
         }
@@ -223,6 +242,7 @@ export default function Viewer({
         setError(errorMessage)
 
         // Always provide fallback depth map
+        setModelStatus('fallback')
         try {
           const fallbackDepth = createFallbackDepth(portraitImage.width, portraitImage.height)
           if (onDepthReady && !isCancelled) {
@@ -724,6 +744,8 @@ export default function Viewer({
           onReset={onReset}
           rotation={currentRotation}
           fps={fps}
+          // Model status
+          modelStatus={modelStatus}
           // Atlas mode props
           atlasEnabled={!!generatedAtlas}
           atlasGridCoords={currentGridCoords}

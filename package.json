@@ -10,6 +10,7 @@
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0"
   },
   "dependencies": {
+    "@vercel/blob": "^0.26.0",
     "@vercel/kv": "^2.0.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",

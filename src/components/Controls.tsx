@@ -20,6 +20,8 @@ interface ControlsProps {
   onReset: () => void
   rotation: { yaw: number; pitch: number }
   fps: number
+  // Model status
+  modelStatus?: 'loading' | 'loaded' | 'fallback' | null
   // Atlas mode props
   atlasEnabled?: boolean
   atlasGridCoords?: { px: number; py: number } | null
@@ -52,6 +54,8 @@ export default function Controls({
   onReset,
   rotation,
   fps,
+  // Model status
+  modelStatus,
   // Atlas mode props
   atlasEnabled,
   atlasGridCoords,
@@ -63,6 +67,32 @@ export default function Controls({
   return (
     <div className="controls">
       <div className="controls-panel">
+        {/* Model Status Indicator */}
+        {modelStatus && (
+          <div className="control-group model-status">
+            <div className={`model-status-indicator model-status-${modelStatus}`}>
+              {modelStatus === 'loading' && (
+                <>
+                  <span className="model-status-icon">⏳</span>
+                  <span className="model-status-text">Loading model...</span>
+                </>
+              )}
+              {modelStatus === 'loaded' && (
+                <>
+                  <span className="model-status-icon">✅</span>
+                  <span className="model-status-text">Model loaded</span>
+                </>
+              )}
+              {modelStatus === 'fallback' && (
+                <>
+                  <span className="model-status-icon">⚠️</span>
+                  <span className="model-status-text">Using fallback depth</span>
+                </>
+              )}
+            </div>
+          </div>
+        )}
+
         {/* Depth Effect Master Toggle */}
         <div className="control-group depth-toggle">
           <label htmlFor="depthToggle">

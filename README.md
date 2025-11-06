@@ -262,6 +262,141 @@ If you don't provide a model, the app will automatically use a simple **radial g
 - Only upgrade to `model_fp16.onnx` if you need higher quality and can accept slower loading
 - Avoid full precision models (`model.onnx`) for web deployment
 
+### Model Storage for Vercel Deployment
+
+Since the ONNX model file (`depth-anything-v2-small.onnx`) is gitignored (it's ~235MB), it won't be deployed to Vercel. Here are two solutions:
+
+#### Option 1: CDN (Recommended - Simplest)
+
+**Use Hugging Face CDN** - The model is already hosted there, no setup needed!
+
+**Setup:**
+
+1. **No changes needed!** The code is already configured to:
+   - Try local model first (`/models/depth-anything-v2-small.onnx`)
+   - Automatically fallback to Hugging Face CDN if local not found
+
+2. **For production**, you can explicitly set the CDN URL in `src/config.ts`:
+   ```typescript
+   modelPath: 'https://huggingface.co/onnx-community/depth-anything-v2-small/resolve/main/onnx/model.onnx'
+   ```
+
+**Available CDN URLs:**
+
+- **Small model** (recommended): `https://huggingface.co/onnx-community/depth-anything-v2-small/resolve/main/onnx/model.onnx`
+- **Large q4f16** (235MB, best balance): `https://huggingface.co/onnx-community/depth-anything-v2-large/resolve/main/onnx/model_q4f16.onnx`
+- **Large fp16** (669MB, high quality): `https://huggingface.co/onnx-community/depth-anything-v2-large/resolve/main/onnx/model_fp16.onnx`
+
+**Pros:**
+- ✅ Zero setup - works immediately
+- ✅ No storage costs
+- ✅ Fast CDN delivery
+- ✅ No Vercel configuration needed
+
+**Cons:**
+- ⚠️ Depends on external service (Hugging Face)
+- ⚠️ First load downloads ~235MB from CDN
+
+#### Option 2: Vercel Blob Storage
+
+Store the model in Vercel Blob Storage and serve via API route.
+
+**Setup Steps:**
+
+1. **Install dependencies** (already added):
+   ```bash
+   npm install
+   ```
+
+2. **Get Vercel Blob Token**:
+   - Go to [Vercel Dashboard](https://vercel.com/dashboard)
+   - Select your project → Settings → Storage
+   - Create a new Blob store (or use existing)
+   - Copy the `BLOB_READ_WRITE_TOKEN`
+
+3. **Upload the model** (choose one method):
+
+   **Method A: Using Vercel CLI** (recommended):
+   ```bash
+   # Install Vercel CLI if needed
+   npm i -g vercel
+   
+   # Upload the model
+   vercel blob put public/models/depth-anything-v2-small.onnx \
+     --token YOUR_BLOB_TOKEN \
+     --name depth-anything-v2-small.onnx
+   ```
+
+   **Method B: Using the upload script**:
+   ```bash
+   # Set token in environment
+   export BLOB_READ_WRITE_TOKEN=your_token_here
+   
+   # Run upload script
+   npx tsx scripts/upload-model-to-blob.ts
+   ```
+
+4. **Set environment variable in Vercel**:
+   - Go to Vercel Dashboard → Your Project → Settings → Environment Variables
+   - Add: `BLOB_READ_WRITE_TOKEN` = `your_token_here`
+   - Redeploy
+
+5. **Update config** (optional - auto-detection works):
+   ```typescript
+   // In src/config.ts
+   modelPath: '/api/model'  // Use Vercel Blob API route
+   ```
+
+**How It Works:**
+
+- The API route (`api/model.ts`) fetches the model from Vercel Blob Storage
+- Streams it to the client with proper headers
+- Cached by Vercel's CDN for fast delivery
+
+**Pros:**
+- ✅ Self-hosted (no external dependency)
+- ✅ Fast delivery via Vercel CDN
+- ✅ Integrated with Vercel infrastructure
+
+**Cons:**
+- ⚠️ Requires setup and token management
+- ⚠️ Uses Vercel Blob Storage quota
+- ⚠️ Slightly more complex than CDN
+
+**Current Configuration:**
+
+The app is configured to **auto-detect**:
+1. Try local model first (`/models/depth-anything-v2-small.onnx`)
+2. If not found, use CDN fallback (Hugging Face)
+
+This means:
+- **Local development**: Uses local file if present
+- **Vercel deployment**: Automatically uses CDN (since local file isn't deployed)
+
+**To Force a Specific Source:**
+
+Edit `src/config.ts`:
+
+```typescript
+// Use CDN only
+modelPath: 'https://huggingface.co/onnx-community/depth-anything-v2-small/resolve/main/onnx/model.onnx'
+
+// Use Vercel Blob API
+modelPath: '/api/model'
+
+// Use local only (will fail if not found)
+modelPath: '/models/depth-anything-v2-small.onnx'
+```
+
+**Recommendation:**
+
+**Start with Option 1 (CDN)** - it requires zero setup and works immediately. The Hugging Face CDN is reliable and fast.
+
+Only use Option 2 (Vercel Blob) if you:
+- Need self-hosted storage
+- Want more control over the model file
+- Have specific compliance/security requirements
+
 ### Troubleshooting
 
 **Model won't load:**
@@ -287,6 +422,21 @@ If you don't provide a model, the app will automatically use a simple **radial g
 - Use `model_q4f16.onnx` (235 MB) instead of larger variants
 - Consider using Depth Anything V2 Small if available (smaller base model)
 - Check if your hosting/CDN has file size limits
+
+**Model not loading on Vercel:**
+- Check browser console for errors
+- Verify the CDN URL is accessible: `curl -I https://huggingface.co/onnx-community/depth-anything-v2-small/resolve/main/onnx/model.onnx`
+- Check network tab - model should download from CDN
+- If using Vercel Blob, verify `BLOB_READ_WRITE_TOKEN` is set correctly
+
+**Slow model loading:**
+- The model is ~235MB, first load will take time
+- Subsequent loads are cached by browser
+- Consider using a smaller quantized model if needed
+
+**CORS errors:**
+- Hugging Face CDN supports CORS
+- If using custom CDN, ensure CORS headers are set
 
 ### Testing Without a Model
 

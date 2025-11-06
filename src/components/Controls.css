@@ -205,3 +205,44 @@
   word-break: break-word;
 }
 
+/* Model Status Indicator */
+.control-group.model-status {
+  margin-bottom: 0.75rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.model-status-indicator {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  font-weight: 500;
+}
+
+.model-status-icon {
+  font-size: 1rem;
+  line-height: 1;
+}
+
+.model-status-text {
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.model-status-loading {
+  background: rgba(255, 200, 100, 0.15);
+  border: 1px solid rgba(255, 200, 100, 0.3);
+}
+
+.model-status-loaded {
+  background: rgba(100, 255, 100, 0.15);
+  border: 1px solid rgba(100, 255, 100, 0.3);
+}
+
+.model-status-fallback {
+  background: rgba(255, 150, 100, 0.15);
+  border: 1px solid rgba(255, 150, 100, 0.3);
+}
+
