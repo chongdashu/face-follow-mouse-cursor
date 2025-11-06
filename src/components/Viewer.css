@@ -8,6 +8,10 @@
 .viewer-canvas {
   width: 100%;
   height: 100%;
+  cursor: auto;
+}
+
+.viewer-canvas.cursor-hidden {
   cursor: none;
 }
 

@@ -55,6 +55,8 @@ export default function Viewer({
   const [currentRotation, setCurrentRotation] = useState({ yaw: 0, pitch: 0 })
   const [fps, setFps] = useState(0)
   const [sceneReady, setSceneReady] = useState(false)
+  const [depthEnabled, setDepthEnabled] = useState(true)
+  const [cursorHidden, setCursorHidden] = useState(false)
 
   // Atlas mode state
   const [currentAtlasImageUrl, setCurrentAtlasImageUrl] = useState<string | null>(null)
@@ -420,17 +422,23 @@ export default function Viewer({
       // Always update mousePositionRef for depth parallax
       mousePositionRef.current = { x, y }
 
-      // Update depth parallax uniforms (works in both modes now)
+      // Update depth parallax uniforms (only if depth effect is enabled)
       const rotation = cursorMapperRef.current.map(
         x,
         y,
         rect.width,
         rect.height
       )
-      // Apply depth parallax in all modes - in atlas mode it adds subtle 3D effect
-      material.uniforms.yaw.value = rotation.yaw
-      material.uniforms.pitch.value = rotation.pitch
-      setCurrentRotation(rotation)
+      // Only apply depth parallax if enabled
+      if (depthEnabled) {
+        material.uniforms.yaw.value = rotation.yaw
+        material.uniforms.pitch.value = rotation.pitch
+      } else {
+        // Clear rotation when disabled
+        material.uniforms.yaw.value = 0
+        material.uniforms.pitch.value = 0
+      }
+      setCurrentRotation(depthEnabled ? rotation : { yaw: 0, pitch: 0 })
 
       // Update atlas coordinates if atlas mode is active
       if (generatedAtlas) {
@@ -450,7 +458,7 @@ export default function Viewer({
       container.removeEventListener('mousemove', handleMove)
       container.removeEventListener('touchmove', handleMove)
     }
-  }, [sceneReady, generatedAtlas])
+  }, [sceneReady, generatedAtlas, depthEnabled])
 
   // Animation loop
   useEffect(() => {
@@ -758,7 +766,7 @@ export default function Viewer({
             <p>⚠️ {error}</p>
           </div>
         )}
-        <div ref={containerRef} className="viewer-canvas" />
+        <div ref={containerRef} className={`viewer-canvas ${cursorHidden ? 'cursor-hidden' : ''}`} />
       <Controls
           intensity={intensity}
           smoothing={smoothing}
@@ -766,11 +774,15 @@ export default function Viewer({
         yawRange={yawRange}
         pitchRange={pitchRange}
         deadZonePercent={deadZonePercent}
+        depthEnabled={depthEnabled}
+        cursorHidden={cursorHidden}
           onIntensityChange={setIntensity}
           onSmoothingChange={setSmoothing}
         onYawRangeChange={setYawRange}
         onPitchRangeChange={setPitchRange}
         onDeadZoneChange={setDeadZonePercent}
+        onDepthEnabledChange={setDepthEnabled}
+        onCursorHiddenChange={setCursorHidden}
           onToggleDebug={() => setShowDebug(!showDebug)}
           onReset={onReset}
           rotation={currentRotation}

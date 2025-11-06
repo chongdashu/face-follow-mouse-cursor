@@ -7,11 +7,15 @@ interface ControlsProps {
   yawRange: number
   pitchRange: number
   deadZonePercent: number
+  depthEnabled: boolean
+  cursorHidden: boolean
   onIntensityChange: (value: number) => void
   onSmoothingChange: (value: number) => void
   onYawRangeChange: (value: number) => void
   onPitchRangeChange: (value: number) => void
   onDeadZoneChange: (value: number) => void
+  onDepthEnabledChange: (enabled: boolean) => void
+  onCursorHiddenChange: (hidden: boolean) => void
   onToggleDebug: () => void
   onReset: () => void
   rotation: { yaw: number; pitch: number }
@@ -34,11 +38,15 @@ export default function Controls({
   yawRange,
   pitchRange,
   deadZonePercent,
+  depthEnabled,
+  cursorHidden,
   onIntensityChange,
   onSmoothingChange,
   onYawRangeChange,
   onPitchRangeChange,
   onDeadZoneChange,
+  onDepthEnabledChange,
+  onCursorHiddenChange,
   onToggleDebug,
   onReset,
   rotation,
@@ -53,75 +61,106 @@ export default function Controls({
   return (
     <div className="controls">
       <div className="controls-panel">
-        <div className="control-group">
-          <label htmlFor="intensity">
-            Intensity: {intensity}%
+        {/* Depth Effect Master Toggle */}
+        <div className="control-group depth-toggle">
+          <label htmlFor="depthToggle">
+            <input
+              id="depthToggle"
+              type="checkbox"
+              checked={depthEnabled}
+              onChange={(e) => onDepthEnabledChange(e.target.checked)}
+            />
+            Enable Depth Effect
           </label>
-          <input
-            id="intensity"
-            type="range"
-            min="0"
-            max="100"
-            value={intensity}
-            onChange={(e) => onIntensityChange(Number(e.target.value))}
-          />
         </div>
 
-        <div className="control-group">
-          <label htmlFor="smoothing">
-            Smoothing: {smoothing}%
+        {/* Cursor Visibility Toggle */}
+        <div className="control-group cursor-toggle">
+          <label htmlFor="cursorToggle">
+            <input
+              id="cursorToggle"
+              type="checkbox"
+              checked={!cursorHidden}
+              onChange={(e) => onCursorHiddenChange(!e.target.checked)}
+            />
+            Show Cursor
           </label>
-          <input
-            id="smoothing"
-            type="range"
-            min="0"
-            max="100"
-            value={smoothing}
-            onChange={(e) => onSmoothingChange(Number(e.target.value))}
-          />
         </div>
 
-        <div className="control-group">
-          <label htmlFor="yawRange">
-            Yaw range: {yawRange.toFixed(0)}°
-          </label>
-          <input
-            id="yawRange"
-            type="range"
-            min="0"
-            max="30"
-            value={yawRange}
-            onChange={(e) => onYawRangeChange(Number(e.target.value))}
-          />
-        </div>
+        {/* Depth Effect Sliders (only visible when depth is enabled) */}
+        {depthEnabled && (
+          <>
+            <div className="control-group">
+              <label htmlFor="intensity">
+                Intensity: {intensity}%
+              </label>
+              <input
+                id="intensity"
+                type="range"
+                min="0"
+                max="100"
+                value={intensity}
+                onChange={(e) => onIntensityChange(Number(e.target.value))}
+              />
+            </div>
 
-        <div className="control-group">
-          <label htmlFor="pitchRange">
-            Pitch range: {pitchRange.toFixed(0)}°
-          </label>
-          <input
-            id="pitchRange"
-            type="range"
-            min="0"
-            max="20"
-            value={pitchRange}
-            onChange={(e) => onPitchRangeChange(Number(e.target.value))}
-          />
-        </div>
+            <div className="control-group">
+              <label htmlFor="smoothing">
+                Smoothing: {smoothing}%
+              </label>
+              <input
+                id="smoothing"
+                type="range"
+                min="0"
+                max="100"
+                value={smoothing}
+                onChange={(e) => onSmoothingChange(Number(e.target.value))}
+              />
+            </div>
 
-        <div className="control-group">
-          <label htmlFor="deadZone">
-            Dead zone: {deadZonePercent.toFixed(0)}%
-          </label>
-          <input
-            id="deadZone"
-            type="range"
-            min="0"
-            max="20"
-            value={deadZonePercent}
-            onChange={(e) => onDeadZoneChange(Number(e.target.value))}
-          />
-        </div>
+            <div className="control-group">
+              <label htmlFor="yawRange">
+                Yaw range: {yawRange.toFixed(0)}°
+              </label>
+              <input
+                id="yawRange"
+                type="range"
+                min="0"
+                max="30"
+                value={yawRange}
+                onChange={(e) => onYawRangeChange(Number(e.target.value))}
+              />
+            </div>
+
+            <div className="control-group">
+              <label htmlFor="pitchRange">
+                Pitch range: {pitchRange.toFixed(0)}°
+              </label>
+              <input
+                id="pitchRange"
+                type="range"
+                min="0"
+                max="20"
+                value={pitchRange}
+                onChange={(e) => onPitchRangeChange(Number(e.target.value))}
+              />
+            </div>
+
+            <div className="control-group">
+              <label htmlFor="deadZone">
+                Dead zone: {deadZonePercent.toFixed(0)}%
+              </label>
+              <input
+                id="deadZone"
+                type="range"
+                min="0"
+                max="20"
+                value={deadZonePercent}
+                onChange={(e) => onDeadZoneChange(Number(e.target.value))}
+              />
+            </div>
+          </>
+        )}
 
         <div className="control-group">
           <button onClick={onToggleDebug} className={showDebug ? 'active' : ''}>

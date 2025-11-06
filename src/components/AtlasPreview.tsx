@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import './AtlasPreview.css'
 
 interface AtlasPreviewProps {
@@ -6,10 +7,12 @@ interface AtlasPreviewProps {
 }
 
 /**
- * Display a grid of all generated atlas images
+ * Display a drawer with grid of all generated atlas images
  * Hover over items to preview them on the main canvas
  */
 export default function AtlasPreview({ generatedAtlas, onImageHover }: AtlasPreviewProps) {
+  const [isOpen, setIsOpen] = useState(false)
+
   if (!generatedAtlas || generatedAtlas.size === 0) {
     return null
   }
@@ -19,28 +22,51 @@ export default function AtlasPreview({ generatedAtlas, onImageHover }: AtlasPrev
     .sort(([keyA], [keyB]) => keyA.localeCompare(keyB))
 
   return (
-    <div className="atlas-preview">
-      <div className="atlas-preview-header">
-        <h3>Generated Atlas Images ({images.length})</h3>
-        <p className="atlas-preview-subtitle">Hover images to preview on canvas</p>
-      </div>
-      <div className="atlas-preview-grid">
-        {images.map(([key, imageUrl]) => (
-          <div
-            key={key}
-            className="atlas-preview-item"
-            onMouseEnter={() => onImageHover?.(imageUrl)}
-            title={`Hover to preview: ${key}`}
-          >
-            <img
-              src={imageUrl}
-              alt={`Atlas ${key}`}
-              loading="lazy"
-            />
-            <div className="atlas-preview-label">{key}</div>
+    <>
+      {/* Toggle button */}
+      <button
+        className="atlas-preview-toggle"
+        onClick={() => setIsOpen(!isOpen)}
+        title="Toggle atlas preview drawer"
+      >
+        📸 Atlas ({images.length})
+      </button>
+
+      {/* Drawer */}
+      {isOpen && (
+        <div className="atlas-preview-overlay" onClick={() => setIsOpen(false)}>
+          <div className="atlas-preview-drawer" onClick={(e) => e.stopPropagation()}>
+            <div className="atlas-preview-header">
+              <h3>Generated Atlas Images ({images.length})</h3>
+              <button
+                className="atlas-preview-close"
+                onClick={() => setIsOpen(false)}
+                aria-label="Close drawer"
+              >
+                ✕
+              </button>
+            </div>
+            <p className="atlas-preview-subtitle">Hover images to preview on canvas</p>
+            <div className="atlas-preview-grid">
+              {images.map(([key, imageUrl]) => (
+                <div
+                  key={key}
+                  className="atlas-preview-item"
+                  onMouseEnter={() => onImageHover?.(imageUrl)}
+                  title={`Hover to preview: ${key}`}
+                >
+                  <img
+                    src={imageUrl}
+                    alt={`Atlas ${key}`}
+                    loading="lazy"
+                  />
+                  <div className="atlas-preview-label">{key}</div>
+                </div>
+              ))}
+            </div>
           </div>
-        ))}
-      </div>
-    </div>
+        </div>
+      )}
+    </>
   )
 }
