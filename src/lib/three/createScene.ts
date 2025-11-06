@@ -116,18 +116,37 @@ export function createScene(
 
   scene.add(mesh)
 
-  // Handle resize
+  // Handle resize with ResizeObserver for reliability
+  let resizeObserver: ResizeObserver | null = null
+
   const handleResize = () => {
     const width = container.clientWidth
     const height = container.clientHeight
-    camera.aspect = width / height
-    camera.updateProjectionMatrix()
-    renderer.setSize(width, height)
+    if (width > 0 && height > 0) {
+      camera.aspect = width / height
+      camera.updateProjectionMatrix()
+      renderer.setSize(width, height)
+    }
   }
-  window.addEventListener('resize', handleResize)
+
+  // Use ResizeObserver to detect container size changes
+  if (typeof ResizeObserver !== 'undefined') {
+    resizeObserver = new ResizeObserver(() => {
+      handleResize()
+    })
+    resizeObserver.observe(container)
+  } else {
+    // Fallback to window resize if ResizeObserver not available
+    window.addEventListener('resize', handleResize)
+  }
 
   const dispose = () => {
-    window.removeEventListener('resize', handleResize)
+    if (resizeObserver) {
+      resizeObserver.disconnect()
+      resizeObserver = null
+    } else {
+      window.removeEventListener('resize', handleResize)
+    }
     if (container.contains(renderer.domElement)) {
       container.removeChild(renderer.domElement)
     }
