@@ -104,15 +104,26 @@ export function createScene(
   // Mesh
   const mesh = new THREE.Mesh(geometry, material)
 
-  // Scale mesh to match portrait aspect ratio so the image is not stretched
-  if (portraitWidth > 0 && portraitHeight > 0) {
-    const aspect = portraitWidth / portraitHeight
-    if (aspect >= 1) {
-      mesh.scale.set(aspect, 1, 1)
-    } else {
-      mesh.scale.set(1, 1 / aspect, 1)
-    }
+  // Scale the mesh so the portrait covers the viewport while preserving aspect ratio
+  const portraitAspect = portraitWidth > 0 && portraitHeight > 0
+    ? portraitWidth / portraitHeight
+    : 1
+
+  const updateCoverScale = () => {
+    // Visible size at the mesh's Z (mesh at 0, camera at z=1)
+    const distance = Math.abs(camera.position.z)
+    const vFovRad = (camera.fov * Math.PI) / 180
+    const visibleHeight = 2 * Math.tan(vFovRad / 2) * distance
+    const visibleWidth = visibleHeight * camera.aspect
+
+    // Choose plane height so that plane (with portraitAspect) is fully contained in the viewport
+    const planeHeight = Math.min(visibleHeight, visibleWidth / portraitAspect)
+    const planeWidth = planeHeight * portraitAspect
+
+    mesh.scale.set(planeWidth, planeHeight, 1)
   }
+
+  updateCoverScale()
 
   scene.add(mesh)
 
@@ -123,6 +134,7 @@ export function createScene(
     camera.aspect = width / height
     camera.updateProjectionMatrix()
     renderer.setSize(width, height)
+    updateCoverScale()
   }
   window.addEventListener('resize', handleResize)
 
