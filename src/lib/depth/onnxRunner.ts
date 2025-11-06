@@ -125,10 +125,18 @@ export class OnnxDepthRunner {
   /**
    * Dispose resources
    */
-  dispose(): void {
+  async dispose(): Promise<void> {
     if (this.session) {
-      // ONNX Runtime sessions don't have explicit dispose, but we can clear the reference
-      this.session = null
+      try {
+        // Try to release the session if it has a release method
+        if (typeof this.session.release === 'function') {
+          await this.session.release()
+        }
+      } catch (error) {
+        console.warn('Error disposing ONNX session:', error)
+      } finally {
+        this.session = null
+      }
     }
   }
 }

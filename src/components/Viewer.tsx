@@ -117,21 +117,40 @@ export default function Viewer({
     atlasConfig
   )
 
+  // Create fallback depth map (simple radial gradient)
+  const createFallbackDepth = (width: number, height: number): ImageData => {
+    const imageData = new ImageData(width, height)
+    const centerX = width / 2
+    const centerY = height / 2
+    const maxDist = Math.sqrt(centerX ** 2 + centerY ** 2)
+
+    for (let y = 0; y < height; y++) {
+      for (let x = 0; x < width; x++) {
+        const dx = x - centerX
+        const dy = y - centerY
+        const dist = Math.sqrt(dx ** 2 + dy ** 2)
+        const normalized = Math.min(dist / maxDist, 1)
+        const value = Math.floor(normalized * 255)
+
+        const idx = (y * width + x) * 4
+        imageData.data[idx] = value
+        imageData.data[idx + 1] = value
+        imageData.data[idx + 2] = value
+        imageData.data[idx + 3] = 255
+      }
+    }
+
+    return imageData
+  }
+
   // Initialize depth inference if needed
   useEffect(() => {
-    console.log('[Viewer] Depth inference effect triggered:', { 
-      hasDepthMap: !!depthMap, 
-      hasPortrait: !!portraitImage 
-    })
-    
     if (depthMap || !portraitImage) {
-      console.log('[Viewer] Skipping depth inference:', { 
-        reason: depthMap ? 'depthMap exists' : 'no portraitImage' 
-      })
       return
     }
 
-    console.log('[Viewer] Starting depth inference...')
+    let isCancelled = false
+
     const runDepthInference = async () => {
       try {
         setIsProcessing(true)
@@ -139,33 +158,38 @@ export default function Viewer({
 
         // Check if we should skip model loading (for testing)
         if (CONFIG.useFallbackOnly) {
-          console.log('Skipping model loading (useFallbackOnly=true), using fallback depth map')
           throw new Error('Using fallback depth map (debug mode)')
         }
 
-        // For PoC, we'll use a placeholder or try to load a model
-        // In production, you'd have a model file in public/models/
         const modelPath = '/models/depth-anything-v2-small.onnx'
-        
-        console.log('Attempting to load ONNX model from:', modelPath)
-        
+
         // First, check if model file exists
         try {
           const response = await fetch(modelPath, { method: 'HEAD' })
           if (!response.ok) {
-            console.warn(`Model file not found (status: ${response.status}). Using fallback depth map.`)
             throw new Error(`Model file not found at ${modelPath}. Using fallback depth map.`)
           }
-          console.log('Model file found, initializing ONNX Runtime...')
         } catch (fetchError) {
-          console.warn('Model file check failed, using fallback depth map:', fetchError)
           throw new Error('Model file not found. Using fallback depth map.')
         }
-        
+
+        // Check if effect was cancelled before proceeding
+        if (isCancelled) return
+
+        // Dispose existing runner if it exists
+        if (depthRunnerRef.current) {
+          await depthRunnerRef.current.dispose()
+          depthRunnerRef.current = null
+        }
+
         const runner = new OnnxDepthRunner()
-        console.log('Initializing ONNX Runtime...')
         await runner.initialize(modelPath)
-        console.log('ONNX Runtime initialized successfully')
+
+        // Check again after async operation
+        if (isCancelled) {
+          await runner.dispose()
+          return
+        }
 
         // Convert image to ImageData
         const canvas = document.createElement('canvas')
@@ -180,61 +204,54 @@ export default function Viewer({
 
         // Run inference
         const result = await runner.infer(imageData, true)
-        
+
+        // Final cancellation check before updating state
+        if (isCancelled) {
+          await runner.dispose()
+          return
+        }
+
         depthRunnerRef.current = runner
         if (onDepthReady) {
           onDepthReady(result.imageData)
         }
       } catch (err) {
-        console.warn('Depth inference error, using fallback:', err)
+        if (isCancelled) return
+
+        console.warn('Depth inference failed, using fallback:', err)
         const errorMessage = err instanceof Error ? err.message : 'Failed to generate depth map'
         setError(errorMessage)
-        
+
         // Always provide fallback depth map
         try {
-          console.log('[Viewer] Creating fallback depth map...')
           const fallbackDepth = createFallbackDepth(portraitImage.width, portraitImage.height)
-          console.log('[Viewer] Fallback depth map created:', {
-            width: fallbackDepth.width,
-            height: fallbackDepth.height
-          })
-          if (onDepthReady) {
-            console.log('[Viewer] Calling onDepthReady with fallback depth map')
+          if (onDepthReady && !isCancelled) {
             onDepthReady(fallbackDepth)
-          } else {
-            console.warn('[Viewer] onDepthReady callback not provided!')
           }
         } catch (fallbackError) {
-          console.error('[Viewer] Failed to create fallback depth map:', fallbackError)
-          setError('Failed to process image. Please try again.')
+          console.error('Failed to create fallback depth map:', fallbackError)
+          if (!isCancelled) {
+            setError('Failed to process image. Please try again.')
+          }
         }
       } finally {
-        console.log('[Viewer] Depth inference complete, setting isProcessing to false')
-        setIsProcessing(false)
+        if (!isCancelled) {
+          setIsProcessing(false)
+        }
       }
     }
 
     runDepthInference()
+
+    // Cleanup function to cancel in-flight operations
+    return () => {
+      isCancelled = true
+    }
   }, [portraitImage, depthMap, onDepthReady])
 
   // Initialize Three.js scene
   useEffect(() => {
-    console.log('[Viewer] Scene initialization effect triggered:', {
-      hasContainer: !!containerRef.current,
-      hasPortrait: !!portraitImage,
-      hasDepthMap: !!depthMap,
-      containerDimensions: containerRef.current ? {
-        width: containerRef.current.clientWidth,
-        height: containerRef.current.clientHeight
-      } : 'no container'
-    })
-    
     if (!containerRef.current || !portraitImage || !depthMap) {
-      console.log('[Viewer] Skipping scene init:', {
-        missingContainer: !containerRef.current,
-        missingPortrait: !portraitImage,
-        missingDepthMap: !depthMap
-      })
       return
     }
 
@@ -245,35 +262,17 @@ export default function Viewer({
 
     const initScene = async () => {
       try {
-        console.log('[Viewer] ===== Starting Three.js scene initialization =====')
-        console.log('[Viewer] Portrait image src:', portraitImage.src)
-        console.log('[Viewer] Portrait image dimensions:', portraitImage.width, 'x', portraitImage.height)
-        console.log('[Viewer] Portrait image complete:', portraitImage.complete)
-        console.log('[Viewer] Portrait image naturalWidth:', portraitImage.naturalWidth)
-        console.log('[Viewer] Depth map dimensions:', depthMap.width, 'x', depthMap.height)
-        
         // Ensure image is loaded
         if (!portraitImage.complete || portraitImage.naturalWidth === 0) {
-          console.log('[Viewer] Waiting for portrait image to load...')
           await new Promise<void>((resolve, reject) => {
             const img = portraitImage!
             if (img.complete) {
-              console.log('[Viewer] Portrait image already complete')
               resolve()
             } else {
-              console.log('[Viewer] Setting up load handlers for portrait image')
-              img.onload = () => {
-                console.log('[Viewer] Portrait image loaded via onload handler')
-                resolve()
-              }
-              img.onerror = () => {
-                console.error('[Viewer] Portrait image failed to load')
-                reject(new Error('Failed to load portrait image'))
-              }
+              img.onload = () => resolve()
+              img.onerror = () => reject(new Error('Failed to load portrait image'))
             }
           })
-        } else {
-          console.log('[Viewer] Portrait image already loaded')
         }
 
         // Create portrait texture using canvas (immediate availability)
@@ -289,10 +288,6 @@ export default function Viewer({
         portraitTexture.flipY = true
         portraitTexture.needsUpdate = true
         portraitTexture.colorSpace = THREE.SRGBColorSpace
-        console.log('[Viewer] Portrait texture created via canvas:', {
-          width: portraitCanvas.width,
-          height: portraitCanvas.height
-        })
 
         if (!isMounted) {
           portraitTexture.dispose()
@@ -310,10 +305,6 @@ export default function Viewer({
         depthTexture.flipY = true
         depthTexture.needsUpdate = true
         depthTexture.colorSpace = THREE.LinearSRGBColorSpace
-        console.log('[Viewer] Depth texture created via canvas:', {
-          width: depthCanvas.width,
-          height: depthCanvas.height
-        })
 
         if (!isMounted) {
           portraitTexture.dispose()
@@ -322,7 +313,6 @@ export default function Viewer({
         }
 
         // Create scene
-        console.log('[Viewer] Creating Three.js scene...')
         state = createScene(
           containerRef.current!,
           portraitTexture!,
@@ -338,21 +328,11 @@ export default function Viewer({
           state.renderer.render(state.scene, state.camera)
           setSceneReady(true)
         }
-        console.log('[Viewer] ===== Scene initialized successfully =====')
-        console.log('[Viewer] Scene state:', {
-          hasRenderer: !!state.renderer,
-          hasMaterial: !!state.material,
-          hasMesh: !!state.mesh,
-          containerChildren: containerRef.current!.children.length
-        })
 
       } catch (err) {
-        console.error('[Viewer] ===== Scene initialization ERROR =====')
-        console.error('[Viewer] Error details:', err)
-        console.error('[Viewer] Error stack:', err instanceof Error ? err.stack : 'No stack')
+        console.error('Scene initialization error:', err)
         if (isMounted) {
           const errorMsg = err instanceof Error ? err.message : 'Failed to initialize scene'
-          console.error('[Viewer] Setting error state:', errorMsg)
           setError(errorMsg)
         }
       }
@@ -362,7 +342,6 @@ export default function Viewer({
 
     // Cleanup
     return () => {
-      console.log('[Viewer] Cleaning up Three.js scene...')
       isMounted = false
 
       if (animationFrameRef.current) {
@@ -383,8 +362,12 @@ export default function Viewer({
         }
       }
 
+      // Note: cleanup function cannot be async, but dispose is async
+      // This is acceptable as it's cleanup - just fire and forget
       if (depthRunnerRef.current) {
-        depthRunnerRef.current.dispose()
+        depthRunnerRef.current.dispose().catch(err =>
+          console.warn('Error during cleanup dispose:', err)
+        )
         depthRunnerRef.current = null
       }
 
@@ -397,9 +380,12 @@ export default function Viewer({
     if (!sceneReady || !containerRef.current || !sceneStateRef.current) return
 
     const container = containerRef.current
-    const material = sceneStateRef.current.material
 
     const handleMove = (e: MouseEvent | TouchEvent) => {
+      // Get fresh references on each event to avoid stale closures
+      if (!sceneStateRef.current) return
+      const material = sceneStateRef.current.material
+
       const rect = container.getBoundingClientRect()
       let clientX: number
       let clientY: number
@@ -420,25 +406,22 @@ export default function Viewer({
       // Always update mousePositionRef for depth parallax
       mousePositionRef.current = { x, y }
 
-      // Update depth parallax uniforms (only if depth effect is enabled)
+      // Update depth parallax uniforms
       const rotation = cursorMapperRef.current.map(
         x,
         y,
         rect.width,
         rect.height
       )
-      // Only apply depth parallax if enabled
-      if (depthEnabled) {
-        material.uniforms.yaw.value = rotation.yaw
-        material.uniforms.pitch.value = rotation.pitch
-      } else {
-        // Clear rotation when disabled
-        material.uniforms.yaw.value = 0
-        material.uniforms.pitch.value = 0
-      }
+
+      // Apply rotation - always set the values
+      material.uniforms.yaw.value = rotation.yaw
+      material.uniforms.pitch.value = rotation.pitch
+
       // Signal Three.js to apply the uniform changes
       material.uniformsNeedUpdate = true
-      setCurrentRotation(depthEnabled ? rotation : { yaw: 0, pitch: 0 })
+
+      setCurrentRotation(rotation)
 
       // Update atlas coordinates if atlas mode is active
       if (generatedAtlas) {
@@ -457,7 +440,7 @@ export default function Viewer({
       container.removeEventListener('mousemove', handleMove)
       container.removeEventListener('touchmove', handleMove)
     }
-  }, [sceneReady, generatedAtlas, depthEnabled])
+  }, [sceneReady, generatedAtlas])
 
   // Animation loop
   useEffect(() => {
@@ -507,12 +490,15 @@ export default function Viewer({
     }
   }, [sceneReady])
 
-  // Update intensity (depth scale)
+  // Update intensity (depth scale) and depth enabled
   useEffect(() => {
     if (!sceneStateRef.current) return
-    const scale = (intensity / 100) * (CONFIG.depthScaleMax - CONFIG.depthScaleMin) + CONFIG.depthScaleMin
+    // If depth is disabled, set scale to 0, otherwise use intensity value
+    const scale = depthEnabled
+      ? (intensity / 100) * (CONFIG.depthScaleMax - CONFIG.depthScaleMin) + CONFIG.depthScaleMin
+      : 0
     sceneStateRef.current.material.uniforms.depthScale.value = scale
-  }, [intensity])
+  }, [intensity, depthEnabled])
 
   // Update smoothing
   useEffect(() => {
@@ -674,13 +660,6 @@ export default function Viewer({
   useEffect(() => {
     if (!generatedAtlas) return
 
-    console.log('[ATLAS] State update effect:', {
-      gridCoords: atlasState.gridCoords,
-      newUrl: atlasState.currentImageUrl,
-      oldUrl: currentAtlasImageUrl,
-      isUrlChange: atlasState.currentImageUrl !== currentAtlasImageUrl
-    })
-
     // Always update grid coordinates so they follow cursor
     setCurrentGridCoords(atlasState.gridCoords)
 
@@ -689,32 +668,6 @@ export default function Viewer({
       setCurrentAtlasImageUrl(atlasState.currentImageUrl)
     }
   }, [atlasState, generatedAtlas, currentAtlasImageUrl])
-
-  // Create fallback depth map (simple radial gradient)
-  const createFallbackDepth = (width: number, height: number): ImageData => {
-    const imageData = new ImageData(width, height)
-    const centerX = width / 2
-    const centerY = height / 2
-    const maxDist = Math.sqrt(centerX ** 2 + centerY ** 2)
-
-    for (let y = 0; y < height; y++) {
-      for (let x = 0; x < width; x++) {
-        const dx = x - centerX
-        const dy = y - centerY
-        const dist = Math.sqrt(dx ** 2 + dy ** 2)
-        const normalized = Math.min(dist / maxDist, 1)
-        const value = Math.floor(normalized * 255)
-
-        const idx = (y * width + x) * 4
-        imageData.data[idx] = value
-        imageData.data[idx + 1] = value
-        imageData.data[idx + 2] = value
-        imageData.data[idx + 3] = 255
-      }
-    }
-
-    return imageData
-  }
 
   if (isProcessing) {
     return (

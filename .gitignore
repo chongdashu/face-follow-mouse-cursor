@@ -27,3 +27,4 @@ public/models/*.onnx
 
 .vercel
 .env*.local
+.env
