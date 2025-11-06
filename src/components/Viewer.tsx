@@ -43,7 +43,6 @@ export default function Viewer({
   const atlasTextureRef = useRef<THREE.Texture | null>(null)
   const mousePositionRef = useRef({ x: 0, y: 0 })
   const atlasThrottleRef = useRef({ lastUpdateTime: 0 })
-  const depthEnabledRef = useRef(true)
 
   const [isProcessing, setIsProcessing] = useState(!depthMap)
   const [error, setError] = useState<string | null>(null)
@@ -64,11 +63,6 @@ export default function Viewer({
   const [currentGridCoords, setCurrentGridCoords] = useState<{ px: number; py: number } | null>(null)
   const [containerDimensions, setContainerDimensions] = useState({ width: 0, height: 0 })
   const [atlasMousePosition, setAtlasMousePosition] = useState({ x: 0, y: 0 })
-
-  // Keep depthEnabledRef in sync with state
-  useEffect(() => {
-    depthEnabledRef.current = depthEnabled
-  }, [depthEnabled])
 
   // Detect atlas config from generated atlas keys
   const atlasConfig = useMemo(() => {
@@ -435,8 +429,8 @@ export default function Viewer({
         rect.width,
         rect.height
       )
-      // Update rotation based on depth effect state (use ref to avoid dependency issues)
-      if (depthEnabledRef.current) {
+      // Only apply depth parallax if enabled
+      if (depthEnabled) {
         material.uniforms.yaw.value = rotation.yaw
         material.uniforms.pitch.value = rotation.pitch
       } else {
@@ -444,9 +438,7 @@ export default function Viewer({
         material.uniforms.yaw.value = 0
         material.uniforms.pitch.value = 0
       }
-      // Signal Three.js to apply the uniform changes
-      material.uniformsNeedUpdate = true
-      setCurrentRotation(depthEnabledRef.current ? rotation : { yaw: 0, pitch: 0 })
+      setCurrentRotation(depthEnabled ? rotation : { yaw: 0, pitch: 0 })
 
       // Update atlas coordinates if atlas mode is active
       if (generatedAtlas) {
@@ -466,7 +458,7 @@ export default function Viewer({
       container.removeEventListener('mousemove', handleMove)
       container.removeEventListener('touchmove', handleMove)
     }
-  }, [sceneReady, generatedAtlas])
+  }, [sceneReady, generatedAtlas, depthEnabled])
 
   // Animation loop
   useEffect(() => {
