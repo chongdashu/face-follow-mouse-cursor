@@ -34,36 +34,34 @@ export default function AtlasPreview({ generatedAtlas, onImageHover }: AtlasPrev
 
       {/* Drawer */}
       {isOpen && (
-        <div className="atlas-preview-overlay" onClick={() => setIsOpen(false)}>
-          <div className="atlas-preview-drawer" onClick={(e) => e.stopPropagation()}>
-            <div className="atlas-preview-header">
-              <h3>Generated Atlas Images ({images.length})</h3>
-              <button
-                className="atlas-preview-close"
-                onClick={() => setIsOpen(false)}
-                aria-label="Close drawer"
+        <div className="atlas-preview-drawer">
+          <div className="atlas-preview-header">
+            <h3>Generated Atlas Images ({images.length})</h3>
+            <button
+              className="atlas-preview-close"
+              onClick={() => setIsOpen(false)}
+              aria-label="Close drawer"
+            >
+              ✕
+            </button>
+          </div>
+          <p className="atlas-preview-subtitle">Hover images to preview on canvas</p>
+          <div className="atlas-preview-grid">
+            {images.map(([key, imageUrl]) => (
+              <div
+                key={key}
+                className="atlas-preview-item"
+                onMouseEnter={() => onImageHover?.(imageUrl)}
+                title={`Hover to preview: ${key}`}
               >
-                ✕
-              </button>
-            </div>
-            <p className="atlas-preview-subtitle">Hover images to preview on canvas</p>
-            <div className="atlas-preview-grid">
-              {images.map(([key, imageUrl]) => (
-                <div
-                  key={key}
-                  className="atlas-preview-item"
-                  onMouseEnter={() => onImageHover?.(imageUrl)}
-                  title={`Hover to preview: ${key}`}
-                >
-                  <img
-                    src={imageUrl}
-                    alt={`Atlas ${key}`}
-                    loading="lazy"
-                  />
-                  <div className="atlas-preview-label">{key}</div>
-                </div>
-              ))}
-            </div>
+                <img
+                  src={imageUrl}
+                  alt={`Atlas ${key}`}
+                  loading="lazy"
+                />
+                <div className="atlas-preview-label">{key}</div>
+              </div>
+            ))}
           </div>
         </div>
       )}

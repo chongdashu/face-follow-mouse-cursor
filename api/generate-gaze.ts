@@ -1,16 +1,21 @@
 /**
  * Vercel Serverless Function for generating gaze images via Replicate API
- * 
+ *
  * This endpoint securely handles Replicate API calls without exposing the API key
- * to the client-side code.
- * 
+ * to the client-side code. Includes caching via Vercel KV to avoid regenerating
+ * previously processed images.
+ *
  * Usage:
  * POST /api/generate-gaze
- * Body: { image: base64Image, px: number, py: number }
- * 
+ * Body: { image: base64Image, px: number, py: number, imageHash?: string }
+ *
  * Environment Variables Required:
  * - REPLICATE_API_TOKEN: Your Replicate API token
+ * - KV_URL, KV_REST_API_URL, KV_REST_API_TOKEN: Vercel KV credentials
  */
+
+import { hashImage } from './lib/imageHash.js'
+import { getCachedAtlasImage, setCachedAtlasImage } from './lib/kv.js'
 
 // Vercel serverless function types
 interface VercelRequest {
@@ -24,9 +29,10 @@ interface VercelResponse {
 }
 
 interface GenerateGazeRequest {
-  image: string // Base64 encoded image
-  px: number    // Horizontal gaze angle (-15 to 15)
-  py: number    // Vertical gaze angle (-15 to 15)
+  image: string       // Base64 encoded image
+  px: number          // Horizontal gaze angle (-15 to 15)
+  py: number          // Vertical gaze angle (-15 to 15)
+  imageHash?: string  // Optional pre-computed hash (for cache lookup)
 }
 
 interface ReplicatePrediction {
@@ -54,21 +60,40 @@ export default async function handler(
   }
 
   try {
-    const { image, px, py }: GenerateGazeRequest = req.body
+    const { image, px, py, imageHash: providedHash }: GenerateGazeRequest = req.body
 
     // Validate input
     if (!image || typeof px !== 'number' || typeof py !== 'number') {
-      return res.status(400).json({ 
-        error: 'Invalid request. Required: { image: string, px: number, py: number }' 
+      return res.status(400).json({
+        error: 'Invalid request. Required: { image: string, px: number, py: number }'
       })
     }
 
     // Validate gaze angles (typically -15 to 15)
     if (px < -15 || px > 15 || py < -15 || py > 15) {
-      return res.status(400).json({ 
-        error: 'Gaze angles must be between -15 and 15' 
+      return res.status(400).json({
+        error: 'Gaze angles must be between -15 and 15'
       })
     }
+
+    // Compute or use provided image hash
+    const imageHash = providedHash || hashImage(image)
+    console.log(`[GENERATE-GAZE] Request for px=${px}, py=${py}, hash=${imageHash.substring(0, 8)}...`)
+
+    // Check cache first
+    const cachedUrl = await getCachedAtlasImage(imageHash, px, py)
+    if (cachedUrl) {
+      console.log(`[GENERATE-GAZE] Cache HIT for px=${px}, py=${py}`)
+      return res.status(200).json({
+        success: true,
+        imageUrl: cachedUrl,
+        px,
+        py,
+        cached: true,
+      })
+    }
+
+    console.log(`[GENERATE-GAZE] Cache MISS for px=${px}, py=${py}, calling Replicate...`)
 
     // Convert base64 to data URL if needed
     const imageData = image.startsWith('data:') ? image : `data:image/jpeg;base64,${image}`
@@ -151,11 +176,15 @@ export default async function handler(
         ? finalPrediction.output[0]
         : finalPrediction.output
 
+      // Store in cache for future requests
+      await setCachedAtlasImage(imageHash, px, py, imageUrl)
+
       return res.status(200).json({
         success: true,
         imageUrl,
         px,
         py,
+        cached: false,
       })
     }
 

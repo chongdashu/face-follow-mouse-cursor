@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { generateGazeAtlas } from '../lib/replicate/generateGaze'
+import { useState, useEffect } from 'react'
+import { generateGazeAtlas, checkAtlasCache } from '../lib/replicate/generateGaze'
 import './AtlasGenerator.css'
 
 interface AtlasGeneratorProps {
@@ -10,17 +10,39 @@ interface AtlasGeneratorProps {
 
 /**
  * Component for generating gaze atlas images using Replicate API
- * Shows progress and allows cancellation
+ * Shows progress, cache status, and allows cancellation
  */
-export default function AtlasGenerator({ 
-  portraitImage, 
+export default function AtlasGenerator({
+  portraitImage,
   onAtlasGenerated,
-  onCancel 
+  onCancel
 }: AtlasGeneratorProps) {
   const [isGenerating, setIsGenerating] = useState(false)
-  const [progress, setProgress] = useState({ completed: 0, total: 121 })
+  const [progress, setProgress] = useState({ completed: 0, total: 121, cached: 0 })
   const [error, setError] = useState<string | null>(null)
   const [generatedImages, setGeneratedImages] = useState<Map<string, string> | null>(null)
+  const [cacheStatus, setCacheStatus] = useState<{ total: number; cached: number } | null>(null)
+  const [isCheckingCache, setIsCheckingCache] = useState(false)
+
+  /**
+   * Check cache status on mount for all atlas sizes
+   */
+  useEffect(() => {
+    const checkCache = async () => {
+      setIsCheckingCache(true)
+      try {
+        // Check cache for default 11x11 atlas
+        const status = await checkAtlasCache(portraitImage, -15, 15, 3)
+        setCacheStatus(status)
+        console.log('[ATLAS-GEN] Cache status:', status)
+      } catch (error) {
+        console.warn('[ATLAS-GEN] Failed to check cache:', error)
+      } finally {
+        setIsCheckingCache(false)
+      }
+    }
+    checkCache()
+  }, [portraitImage])
 
   /**
    * Generate atlas with default parameters (11x11 grid, step 3)
@@ -28,7 +50,7 @@ export default function AtlasGenerator({
   const handleGenerate = async () => {
     setIsGenerating(true)
     setError(null)
-    setProgress({ completed: 0, total: 121 })
+    setProgress({ completed: 0, total: 121, cached: 0 })
 
     try {
       const imageMap = await generateGazeAtlas(
@@ -36,8 +58,8 @@ export default function AtlasGenerator({
         -15, // min
         15,  // max
         3,   // step
-        (completed, total) => {
-          setProgress({ completed, total })
+        (completed, total, cached) => {
+          setProgress({ completed, total, cached })
         }
       )
 
@@ -56,7 +78,7 @@ export default function AtlasGenerator({
   const handleTestGenerate = async () => {
     setIsGenerating(true)
     setError(null)
-    setProgress({ completed: 0, total: 25 })
+    setProgress({ completed: 0, total: 25, cached: 0 })
 
     try {
       const imageMap = await generateGazeAtlas(
@@ -64,8 +86,8 @@ export default function AtlasGenerator({
         -12, // min
         12,  // max
         6,   // step (larger step = fewer images)
-        (completed, total) => {
-          setProgress({ completed, total })
+        (completed, total, cached) => {
+          setProgress({ completed, total, cached })
         }
       )
 
@@ -84,7 +106,7 @@ export default function AtlasGenerator({
   const handleUltraTestGenerate = async () => {
     setIsGenerating(true)
     setError(null)
-    setProgress({ completed: 0, total: 9 })
+    setProgress({ completed: 0, total: 9, cached: 0 })
 
     try {
       const imageMap = await generateGazeAtlas(
@@ -92,8 +114,8 @@ export default function AtlasGenerator({
         -8,  // min
         8,   // max
         8,   // step (8 degree steps = 3x3 grid: -8, 0, 8)
-        (completed, total) => {
-          setProgress({ completed, total })
+        (completed, total, cached) => {
+          setProgress({ completed, total, cached })
         }
       )
 
@@ -137,19 +159,51 @@ export default function AtlasGenerator({
         </div>
       )}
 
+      {isCheckingCache && (
+        <div className="atlas-cache-check">
+          <p>Checking cache...</p>
+        </div>
+      )}
+
+      {cacheStatus && !isGenerating && (
+        <div className="atlas-cache-status">
+          {cacheStatus.cached > 0 ? (
+            <>
+              <p className="cache-hit">
+                ✅ {cacheStatus.cached}/{cacheStatus.total} images already cached
+              </p>
+              <p className="cache-hint">
+                Cached images will load instantly. Only {cacheStatus.total - cacheStatus.cached} new images need generation.
+              </p>
+            </>
+          ) : (
+            <p className="cache-miss">
+              No cached images found. All {cacheStatus.total} images will be generated.
+            </p>
+          )}
+        </div>
+      )}
+
       {isGenerating ? (
         <div className="atlas-progress">
           <div className="atlas-progress-bar">
-            <div 
+            <div
               className="atlas-progress-fill"
               style={{ width: `${(progress.completed / progress.total) * 100}%` }}
             />
           </div>
           <p>
-            Generating {progress.completed} / {progress.total} images...
+            {progress.cached > 0 ? (
+              <>
+                Processing {progress.completed} / {progress.total} images
+                ({progress.cached} from cache)
+              </>
+            ) : (
+              <>Generating {progress.completed} / {progress.total} images...</>
+            )}
           </p>
           <p className="atlas-progress-hint">
-            This may take a few minutes. Estimated cost: ~${(progress.total * 0.0001).toFixed(2)}
+            This may take a few minutes. Estimated cost: ~${((progress.total - progress.cached) * 0.0001).toFixed(4)}
           </p>
         </div>
       ) : (
@@ -159,6 +213,9 @@ export default function AtlasGenerator({
             onClick={handleGenerate}
           >
             Generate Full Atlas (121 images)
+            {cacheStatus && cacheStatus.cached > 0 && (
+              <span className="button-badge"> {cacheStatus.cached} cached</span>
+            )}
           </button>
           <button
             className="atlas-button atlas-button-secondary"

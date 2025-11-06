@@ -26,3 +26,4 @@ dist-ssr
 public/models/*.onnx
 
 .vercel
+.env*.local

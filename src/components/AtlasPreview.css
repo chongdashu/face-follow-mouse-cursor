@@ -22,34 +22,22 @@
   box-shadow: 0 4px 12px rgba(76, 175, 80, 0.3);
 }
 
-/* Overlay */
-.atlas-preview-overlay {
+/* Drawer - slide out from right without overlay */
+.atlas-preview-drawer {
   position: fixed;
   top: 0;
-  left: 0;
   right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
-  z-index: 1000;
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-}
-
-/* Drawer */
-.atlas-preview-drawer {
-  position: relative;
   width: 100%;
-  max-width: 600px;
+  max-width: 400px;
   height: 100vh;
-  max-height: 100vh;
-  background: rgba(20, 20, 20, 0.98);
-  border: 2px solid #4CAF50;
-  border-right: none;
+  background: rgba(20, 20, 20, 0.95);
+  border-left: 2px solid #4CAF50;
   display: flex;
   flex-direction: column;
   animation: slideInRight 0.3s ease;
-  backdrop-filter: blur(5px);
+  backdrop-filter: blur(10px);
+  z-index: 1000;
+  box-shadow: -4px 0 20px rgba(0, 0, 0, 0.5);
 }
 
 @keyframes slideInRight {

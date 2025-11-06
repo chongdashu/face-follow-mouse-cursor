@@ -24,6 +24,7 @@ interface ControlsProps {
   atlasEnabled?: boolean
   atlasGridCoords?: { px: number; py: number } | null
   atlasError?: string | null
+  atlasCached?: boolean
   onGenerateAtlas?: () => void
   onResetAtlas?: () => void
 }
@@ -55,6 +56,7 @@ export default function Controls({
   atlasEnabled,
   atlasGridCoords,
   atlasError,
+  atlasCached,
   onGenerateAtlas,
   onResetAtlas
 }: ControlsProps) {
@@ -180,7 +182,10 @@ export default function Controls({
           {atlasEnabled && (
             <div className="atlas-status">
               <div className="atlas-status-info">
-                <span className="atlas-status-label">Atlas Active</span>
+                <span className="atlas-status-label">
+                  Atlas Active
+                  {atlasCached && <span className="atlas-cached-badge" title="Atlas loaded from cache">📦 Cached</span>}
+                </span>
                 {atlasGridCoords && (
                   <span className="atlas-grid-coords">
                     px: {atlasGridCoords.px}, py: {atlasGridCoords.py}

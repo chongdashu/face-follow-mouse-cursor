@@ -72,7 +72,6 @@ export default function Viewer({
 
     // Extract the first key to detect the grid parameters
     const firstKey = Array.from(generatedAtlas.keys())[0]
-    console.log('[ATLAS] Detecting config from key:', firstKey)
 
     // Parse key format: px{number}_py{number}
     const match = firstKey.match(/px(-?\d+)_py(-?\d+)/)
@@ -105,7 +104,6 @@ export default function Viewer({
     const max = Math.max(...pxValues, ...pyValues)
 
     const detectedConfig = { ...ATLAS_CONFIG, min, max, step }
-    console.log('[ATLAS] Detected config:', detectedConfig)
     return detectedConfig
   }, [generatedAtlas])
 
@@ -446,7 +444,6 @@ export default function Viewer({
       if (generatedAtlas) {
         const now = performance.now()
         if (now - atlasThrottleRef.current.lastUpdateTime >= 33) { // ~30fps throttle
-          console.log('[ATLAS] Mouse position update:', { x, y })
           setAtlasMousePosition({ x, y })
           atlasThrottleRef.current.lastUpdateTime = now
         }
@@ -534,16 +531,12 @@ export default function Viewer({
 
   // Handler for previewing atlas images on hover
   const handleAtlasImagePreview = (imageUrl: string) => {
-    console.log('[HOVER] Preview requested for:', imageUrl, typeof imageUrl)
-
     if (!sceneStateRef.current || !generatedAtlas) {
-      console.log('[HOVER] Missing scene or atlas')
       return
     }
 
     const loadAtlasTexture = async () => {
       try {
-        console.log('[HOVER] Loading texture from:', imageUrl)
         const loader = new THREE.TextureLoader()
         const newTexture = await new Promise<THREE.Texture>((resolve, reject) => {
           loader.load(
@@ -583,13 +576,6 @@ export default function Viewer({
 
   // Handle atlas mode texture updates (when atlas image changes)
   useEffect(() => {
-    console.log('[ATLAS] Texture effect fired', {
-      hasImageUrl: !!atlasState.currentImageUrl,
-      hasScene: !!sceneStateRef.current,
-      hasAtlas: !!generatedAtlas,
-      imageUrl: atlasState.currentImageUrl
-    })
-
     if (!atlasState.currentImageUrl || !sceneStateRef.current || !generatedAtlas) {
       return
     }
@@ -599,14 +585,12 @@ export default function Viewer({
 
     const loadAtlasTexture = async () => {
       try {
-        console.log('[ATLAS] Loading texture from:', imageUrl)
         // Create new texture from URL
         const loader = new THREE.TextureLoader()
         const newTexture = await new Promise<THREE.Texture>((resolve, reject) => {
           loader.load(
             imageUrl,
             (texture) => {
-              console.log('[ATLAS] Texture loaded successfully')
               // Configure texture properties
               texture.flipY = true
               texture.colorSpace = THREE.SRGBColorSpace
@@ -629,7 +613,6 @@ export default function Viewer({
         // Update scene texture
         atlasTextureRef.current = newTexture
         if (sceneStateRef.current?.material?.uniforms?.map) {
-          console.log('[ATLAS] Updating material uniform')
           sceneStateRef.current.material.uniforms.map.value = newTexture
           sceneStateRef.current.material.uniformsNeedUpdate = true
         } else {
@@ -703,10 +686,9 @@ export default function Viewer({
 
     // Update canvas image if URL changed
     if (atlasState.currentImageUrl && atlasState.currentImageUrl !== currentAtlasImageUrl) {
-      console.log('[ATLAS] URL changed, updating state')
       setCurrentAtlasImageUrl(atlasState.currentImageUrl)
     }
-  }, [atlasState, generatedAtlas])
+  }, [atlasState, generatedAtlas, currentAtlasImageUrl])
 
   // Create fallback depth map (simple radial gradient)
   const createFallbackDepth = (width: number, height: number): ImageData => {
