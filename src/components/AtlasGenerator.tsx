@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { generateGazeAtlas, checkAtlasCache } from '../lib/replicate/generateGaze'
+import { hashImagePixels } from '../lib/hash/imageHash'
 import './AtlasGenerator.css'
 
 interface AtlasGeneratorProps {
@@ -22,9 +23,9 @@ export default function AtlasGenerator({
   const [error, setError] = useState<string | null>(null)
   const [generatedImages, setGeneratedImages] = useState<Map<string, string> | null>(null)
   const [cacheStatus, setCacheStatus] = useState<{
-    full: { total: number; cached: number } | null
-    test: { total: number; cached: number } | null
-    ultra: { total: number; cached: number } | null
+    full: { total: number; cached: number; imageHash: string } | null
+    test: { total: number; cached: number; imageHash: string } | null
+    ultra: { total: number; cached: number; imageHash: string } | null
   }>({
     full: null,
     test: null,
@@ -34,16 +35,21 @@ export default function AtlasGenerator({
 
   /**
    * Check cache status on mount for all atlas sizes
+   * Uses precomputed stable hash if available for consistent caching across browsers
    */
   useEffect(() => {
     const checkCache = async () => {
       setIsCheckingCache(true)
       try {
+        // Get stable hash if available (set during upload), otherwise compute it
+        const stableHash = portraitImage.dataset?.stableHash as string | undefined
+        const imageHash = stableHash || await hashImagePixels(portraitImage)
+
         // Check cache for all three configurations in parallel
         const [fullStatus, testStatus, ultraStatus] = await Promise.all([
-          checkAtlasCache(portraitImage, -15, 15, 3),   // 121 images
-          checkAtlasCache(portraitImage, -12, 12, 6),   // 25 images
-          checkAtlasCache(portraitImage, -8, 8, 8),     // 9 images
+          checkAtlasCache(portraitImage, -15, 15, 3, imageHash),   // 121 images
+          checkAtlasCache(portraitImage, -12, 12, 6, imageHash),   // 25 images
+          checkAtlasCache(portraitImage, -8, 8, 8, imageHash),     // 9 images
         ])
 
         setCacheStatus({
@@ -52,12 +58,13 @@ export default function AtlasGenerator({
           ultra: ultraStatus
         })
 
-        console.log('[ATLAS-GEN] Cache status:', {
-          imageHash: fullStatus.imageHash.substring(0, 16) + '...',
+        const cacheLog = {
+          imageHash: imageHash.substring(0, 16) + '...',
           full: `${fullStatus.cached}/${fullStatus.total}`,
           test: `${testStatus.cached}/${testStatus.total}`,
           ultra: `${ultraStatus.cached}/${ultraStatus.total}`
-        })
+        }
+        console.log('[ATLAS-GEN] Cache status:', cacheLog)
       } catch (error) {
         console.warn('[ATLAS-GEN] Failed to check cache:', error)
       } finally {
@@ -76,6 +83,10 @@ export default function AtlasGenerator({
     setProgress({ completed: 0, total: 121, cached: 0 })
 
     try {
+      // Get stable hash if available, otherwise compute it
+      const stableHash = portraitImage.dataset?.stableHash as string | undefined
+      const imageHash = stableHash || await hashImagePixels(portraitImage)
+
       const imageMap = await generateGazeAtlas(
         portraitImage,
         -15, // min
@@ -83,7 +94,8 @@ export default function AtlasGenerator({
         3,   // step
         (completed, total, cached) => {
           setProgress({ completed, total, cached })
-        }
+        },
+        imageHash
       )
 
       setGeneratedImages(imageMap)
@@ -104,6 +116,10 @@ export default function AtlasGenerator({
     setProgress({ completed: 0, total: 25, cached: 0 })
 
     try {
+      // Get stable hash if available, otherwise compute it
+      const stableHash = portraitImage.dataset?.stableHash as string | undefined
+      const imageHash = stableHash || await hashImagePixels(portraitImage)
+
       const imageMap = await generateGazeAtlas(
         portraitImage,
         -12, // min
@@ -111,7 +127,8 @@ export default function AtlasGenerator({
         6,   // step (larger step = fewer images)
         (completed, total, cached) => {
           setProgress({ completed, total, cached })
-        }
+        },
+        imageHash
       )
 
       setGeneratedImages(imageMap)
@@ -132,6 +149,10 @@ export default function AtlasGenerator({
     setProgress({ completed: 0, total: 9, cached: 0 })
 
     try {
+      // Get stable hash if available, otherwise compute it
+      const stableHash = portraitImage.dataset?.stableHash as string | undefined
+      const imageHash = stableHash || await hashImagePixels(portraitImage)
+
       const imageMap = await generateGazeAtlas(
         portraitImage,
         -8,  // min
@@ -139,7 +160,8 @@ export default function AtlasGenerator({
         8,   // step (8 degree steps = 3x3 grid: -8, 0, 8)
         (completed, total, cached) => {
           setProgress({ completed, total, cached })
-        }
+        },
+        imageHash
       )
 
       setGeneratedImages(imageMap)

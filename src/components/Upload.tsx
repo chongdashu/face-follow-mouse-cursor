@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react'
 import { CONFIG } from '../config'
 import { EXAMPLE_PORTRAITS } from '../lib/examplePortraits'
+import { hashImageData, hashImageUrl } from '../lib/hash/imageHash'
 import './Upload.css'
 
 interface UploadProps {
@@ -17,13 +18,14 @@ export default function Upload({ onImageUpload }: UploadProps) {
 
   /**
    * Resize image to max width while maintaining aspect ratio
+   * Computes and attaches a deterministic hash for cache consistency across browsers
    */
   const resizeImage = (file: File): Promise<HTMLImageElement> => {
     return new Promise((resolve, reject) => {
       const reader = new FileReader()
       reader.onload = (e) => {
         const img = new Image()
-        img.onload = () => {
+        img.onload = async () => {
           const canvas = document.createElement('canvas')
           const ctx = canvas.getContext('2d')
           if (!ctx) {
@@ -41,8 +43,23 @@ export default function Upload({ onImageUpload }: UploadProps) {
           canvas.height = height
           ctx.drawImage(img, 0, 0, width, height)
 
+          // Compute stable hash from raw pixel data before JPEG encoding
+          let stableHash: string | undefined
+          try {
+            const imageData = ctx.getImageData(0, 0, width, height)
+            stableHash = await hashImageData(imageData)
+          } catch (error) {
+            console.warn('Failed to compute stable hash:', error)
+          }
+
           const resizedImg = new Image()
-          resizedImg.onload = () => resolve(resizedImg)
+          resizedImg.onload = () => {
+            // Attach stable hash for later use in cache operations
+            if (stableHash) {
+              resizedImg.dataset.stableHash = stableHash
+            }
+            resolve(resizedImg)
+          }
           resizedImg.onerror = () => reject(new Error('Failed to create resized image'))
           resizedImg.src = canvas.toDataURL('image/jpeg', 0.9)
         }
@@ -98,6 +115,7 @@ export default function Upload({ onImageUpload }: UploadProps) {
   /**
    * Load and use an example portrait image from URL
    * Applies same resizing logic as file upload
+   * Computes deterministic hash for cache consistency across browsers
    */
   const handleExampleLoad = async (imageUrl: string) => {
     try {
@@ -127,9 +145,30 @@ export default function Upload({ onImageUpload }: UploadProps) {
       canvas.height = height
       ctx.drawImage(img, 0, 0, width, height)
 
+      // Compute stable hash from raw pixel data before JPEG encoding
+      let stableHash: string | undefined
+      try {
+        const imageData = ctx.getImageData(0, 0, width, height)
+        stableHash = await hashImageData(imageData)
+      } catch (pixelError) {
+        // CORS or canvas issues - fall back to URL-based hash for demo images
+        console.warn('Failed to hash pixel data, using URL hash:', pixelError)
+        try {
+          stableHash = await hashImageUrl(imageUrl)
+        } catch (urlError) {
+          console.warn('Failed to compute URL hash:', urlError)
+        }
+      }
+
       const resizedImg = new Image()
       await new Promise<void>((resolve, reject) => {
-        resizedImg.onload = () => resolve()
+        resizedImg.onload = () => {
+          // Attach stable hash for later use in cache operations
+          if (stableHash) {
+            resizedImg.dataset.stableHash = stableHash
+          }
+          resolve()
+        }
         resizedImg.onerror = () => reject(new Error('Failed to create resized image'))
         resizedImg.src = canvas.toDataURL('image/jpeg', 0.9)
       })

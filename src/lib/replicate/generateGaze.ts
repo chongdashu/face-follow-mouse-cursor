@@ -105,24 +105,33 @@ export async function generateGazeImage(
 
 /**
  * Check cache status for an atlas configuration
+ * Uses provided imageHash for deterministic caching across browsers
+ * @param image - Source image (required for backward compatibility)
+ * @param min - Minimum gaze angle
+ * @param max - Maximum gaze angle
+ * @param step - Step size for angles
+ * @param imageHash - Optional precomputed hash (preferred for stable cache keys)
  * @returns Object with cache status information
  */
 export async function checkAtlasCache(
   image: HTMLImageElement | string,
   min: number = -15,
   max: number = 15,
-  step: number = 3
+  step: number = 3,
+  imageHash?: string
 ): Promise<{
   total: number
   cached: number
   imageHash: string
 }> {
-  // Compute image hash
-  let imageHash: string
-  if (image instanceof HTMLImageElement) {
-    imageHash = await hashImage(image)
+  // Use provided hash or compute it
+  let hash: string
+  if (imageHash) {
+    hash = imageHash
+  } else if (image instanceof HTMLImageElement) {
+    hash = await hashImage(image)
   } else {
-    throw new Error('Cache check requires HTMLImageElement')
+    throw new Error('Cache check requires HTMLImageElement or imageHash parameter')
   }
 
   // Call cache check endpoint
@@ -131,31 +140,33 @@ export async function checkAtlasCache(
     headers: {
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({ imageHash, min, max, step }),
+    body: JSON.stringify({ imageHash: hash, min, max, step }),
   })
 
   if (!response.ok) {
     console.warn('Cache check failed, proceeding with generation')
-    return { total: 0, cached: 0, imageHash }
+    return { total: 0, cached: 0, imageHash: hash }
   }
 
   const data = await response.json()
   return {
     total: data.total,
     cached: data.cached,
-    imageHash,
+    imageHash: hash,
   }
 }
 
 /**
  * Generate a batch of gaze images for the atlas grid
  * Automatically checks cache and only generates missing images
+ * Uses provided imageHash for deterministic caching across browsers
  *
  * @param image - Source image
  * @param min - Minimum angle (default: -15)
  * @param max - Maximum angle (default: 15)
  * @param step - Step size (default: 3)
  * @param onProgress - Optional progress callback (completed, total, cached)
+ * @param imageHash - Optional precomputed hash (preferred for stable cache keys)
  * @returns Promise resolving to map of (px, py) -> imageUrl
  */
 export async function generateGazeAtlas(
@@ -163,28 +174,32 @@ export async function generateGazeAtlas(
   min: number = -15,
   max: number = 15,
   step: number = 3,
-  onProgress?: (completed: number, total: number, cached: number) => void
+  onProgress?: (completed: number, total: number, cached: number) => void,
+  imageHash?: string
 ): Promise<Map<string, string>> {
   const results = new Map<string, string>()
   const angles: Array<{ px: number; py: number }> = []
 
-  // Compute image hash once
-  let imageHash: string | undefined
-  if (image instanceof HTMLImageElement) {
-    imageHash = await hashImage(image)
-    console.log(`[ATLAS] Image hash: ${imageHash.substring(0, 8)}...`)
+  // Compute image hash once (or use provided)
+  let hash: string | undefined
+  if (imageHash) {
+    hash = imageHash
+    console.log(`[ATLAS] Using provided image hash: ${hash.substring(0, 8)}...`)
+  } else if (image instanceof HTMLImageElement) {
+    hash = await hashImage(image)
+    console.log(`[ATLAS] Image hash: ${hash.substring(0, 8)}...`)
   }
 
   // Check cache status first
   let cacheStatus: { total: number; cached: number; imageHash: string } | null = null
-  if (imageHash) {
+  if (hash) {
     try {
       const response = await fetch('/api/check-atlas-cache', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ imageHash, min, max, step }),
+        body: JSON.stringify({ imageHash: hash, min, max, step }),
       })
 
       if (response.ok) {
@@ -213,7 +228,7 @@ export async function generateGazeAtlas(
   // The API will automatically check cache for each request
   for (const { px, py } of angles) {
     try {
-      const result = await generateGazeImage({ image, px, py, imageHash })
+      const result = await generateGazeImage({ image, px, py, imageHash: hash })
       const key = `px${px}_py${py}`
       results.set(key, result.imageUrl)
 
