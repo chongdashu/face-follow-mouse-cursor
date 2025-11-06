@@ -1,58 +1,136 @@
-# YouTube Video Script: "Building a Face-Tracking Web App with Cursor + Claude Code"
+# 🎬 Face-Tracking Video Production Guide
 
-## 🎬 Video Outline
-
-### **Hook (0:00-0:15)**
-*Show the final result first - a portrait following the cursor smoothly*
-
-"I built this face-tracking effect entirely in the browser using AI coding assistants. But here's the twist—I used TWO different AI tools, switching between them strategically to maximize productivity."
+> **Quick Start:** Jump to [Copy-Paste Script](#-copy-paste-script-template) to record in 5 minutes.
 
 ---
 
-### **Act 1: The Inspiration (0:15-1:00)**
+## 🚀 Quick Start (5 min setup → Hit Record)
 
-**Show the tweets from RESEARCH.md:**
-- Wes Bos's tweet about the viral face tracker
-- The two approaches: depth-based (WebGL shaders) vs pre-generated atlas (AI gaze images)
+1. **Clean workspace:**
+   - Close unnecessary tabs/windows
+   - Open only: Browser (with deployed app), Cursor IDE, Terminal (Claude Code)
 
-**Your Hook:**
-"Instead of choosing one approach, I implemented BOTH. And I used two AI coding tools to do it:
-- **Cursor IDE** for visual debugging and rapid prototyping
-- **Claude Code** for terminal workflows and quick fixes"
+2. **Prepare demo assets:**
+   - Have 2-3 portrait images ready to upload
+   - Have `aioriented-profile.png` ready for quick demo
+
+3. **Start recording:**
+   - Screen resolution: 1920x1080 or 2560x1440
+   - Record desktop audio + microphone
+   - Use OBS, QuickTime, or preferred tool
+
+4. **Shortest path to recording:**
+   - Scroll to [Copy-Paste Script Template](#-copy-paste-script-template)
+   - Read it verbatim while demoing
+   - Done.
 
 ---
 
-### **Act 2: The Architecture (1:00-2:30)**
+## 📊 Video Structure & Timestamps
 
-**Show the dual-mode system:**
+```
+0:00 - Hook (Face Tracking Demo)
+0:15 - Inspiration + Real Development Journey (Chat Exports)
+1:30 - Architecture Overview (Depth + Atlas Modes)
+2:30 - Cursor IDE Workflow (Visual Debugging)
+4:00 - Claude Code Workflow (Terminal Power)
+5:00 - Real Problems Solved (Aspect Ratio, Caching, UX)
+6:00 - Technical Deep Dive (ONNX, Shaders, Algorithms)
+7:30 - The Rate Limit Dance (Switching Tools)
+8:30 - Final Results & Performance
+10:00 - Conclusion & Links
+```
 
-#### **Mode 1: Depth-Based Parallax**
-- Upload image → ONNX depth inference (235MB model running in-browser!)
-- Three.js scene with custom vertex shaders
-- Real-time parallax displacement based on cursor position
+**Total: ~10 minutes** (or 5-min version below)
 
-**Visual Demo:** Show the code structure
+---
+
+## 🎥 Scene-by-Scene Breakdown
+
+### Scene 1: Hook (0:00-0:15)
+
+**What to show:** Final app running with smooth face tracking
+
+**What to say:**
+> "This portrait follows my cursor in real-time, entirely in the browser. No backend, no Python—just TypeScript and WebGL. But here's the twist: I built this using TWO AI coding assistants, switching between them strategically. Let me show you why."
+
+**Actions:**
+- Move cursor around smoothly
+- Show face tracking cursor
+- Zoom in on eyes following
+
+**Files to have open:** Browser with deployed app
+
+---
+
+### Scene 2: Inspiration + Real Journey (0:15-1:30)
+
+**What to show:** RESEARCH.md + chat_exports folder
+
+**What to say:**
+> "This started with Wes Bos's viral tweet about face-tracking effects. I found two approaches: depth-based parallax using WebGL shaders, and AI-generated gaze images. Most people pick one. I built both.
+>
+> But here's what that actually looked like. These are my exported chat logs from Cursor—over 83,000 lines across six major debugging sessions. The AI didn't write this in one shot. These logs show the real process: fixing aspect ratio bugs, implementing deterministic hashing for cross-browser caching, polishing the UI. It's collaborative debugging, not magic."
+
+**Actions:**
+- Show RESEARCH.md comparison table (lines 117-126)
+- Pan to `chat_exports/` folder
+- Run: `ls -lh chat_exports/`
+- Highlight: `cursor_fix_image_aspect_ratio_in_app.md` (15,526 lines)
+
+**On-screen text:**
+- Depth Mode: WebGL + ONNX
+- Atlas Mode: Replicate API + Image Grid
+- 83,107 lines of chat logs = Real development
+
+**Files to have open:**
+- `RESEARCH.md` (lines 106-127)
+- Terminal showing chat_exports/
+
+**Key insight:** AI coding isn't instant—it's collaborative debugging.
+
+---
+
+### Scene 3: Architecture Overview (1:30-2:30)
+
+**What to show:** Code structure, file tree
+
+**What to say:**
+> "Let's break down the architecture. The depth-based approach uses a 235-megabyte ONNX model that runs entirely in your browser—yes, machine learning inference with no server. It generates a depth map, then Three.js shaders displace vertices based on cursor position.
+>
+> The atlas mode uses a different strategy: it generates 121 different gaze images using Replicate's AI API, then swaps them based on where your cursor is. Think of it like a flipbook animation, but for eye tracking.
+>
+> The key insight? Both modes share the same cursor mapping logic—dead zones, exponential smoothing, and angle clamping for natural motion."
+
+**Visual flow diagram:**
 ```
 Upload → ONNX Depth Model → Three.js Scene → Custom Shaders → Real-time Parallax
+
+OR
+
+Upload → Replicate API → 121 Gaze Images → Image Swapping → Atlas Mode
 ```
 
-#### **Mode 2: Atlas Generation**
-- Replicate API integration via Vercel serverless functions
-- Generate 121 gaze images (11×11 grid)
-- Image swap based on cursor position
-
-**Visual Demo:** Show the AtlasGenerator UI generating images
+**Actions:**
+- Show file tree in Cursor
+- Highlight key directories: `src/components/`, `src/lib/`, `api/`
 
 ---
 
-### **Act 3: The Dual-Tool Workflow (2:30-5:00)**
-*This is the CORE differentiator of your video*
+### Scene 4: Cursor IDE Workflow (2:30-4:00)
 
-#### **When I Use Cursor IDE:**
+**What to show:** Live coding in Cursor with real examples
 
-**Strength: Visual Debugging + Browser Integration**
+**What to say:**
+> "I use Cursor when I need visual feedback. Watch: I'm editing the Three.js scene creation code. Cursor shows inline errors, autocompletes Three.js types, and integrates with the browser dev tools. When debugging the atlas mode aspect ratio bug, I could see the canvas rendering in real-time while adjusting the code."
 
-**Example 1: Fixing Shader Issues** (Show real example)
+**Actions:**
+- Open `src/lib/three/createScene.ts`
+- Show autocomplete working (type `THREE.`)
+- Open browser dev tools showing Three.js scene
+- Make a small edit, show instant feedback
+
+**Example code to highlight:**
 ```typescript
 // src/lib/three/createScene.ts - Custom vertex shader
 uniform sampler2D depthMap;
@@ -61,58 +139,88 @@ uniform float yaw;
 uniform float pitch;
 ```
 
-**Show:**
-- Cursor's inline error detection
-- Browser dev tools integration
-- Real-time Three.js scene inspection
-- Visual diff when fixing shader uniforms
+**Files to have open:**
+- `src/lib/three/createScene.ts` (lines 20-80, shader code)
+- `src/components/Viewer.tsx` (lines 713-734, atlas texture loading)
+- Browser with dev tools
 
-**Example 2: React Component Refactoring**
-- Show the Upload component with drag-drop
-- Cursor's autocomplete for TypeScript types
-- Inline type checking as you code
+**Real example from chat:** "The aspect ratio bug—atlas images were zoomed in. Cursor helped me trace through the canvas drawing logic visually."
 
 ---
 
-#### **When I Use Claude Code:**
+### Scene 5: Claude Code Workflow (4:00-5:00)
 
-**Strength: Terminal Workflows + Background Tasks**
+**What to show:** Terminal with Claude Code
 
-**Example 1: Running Dev Server + Debugging in Parallel**
+**What to say:**
+> "When I hit rate limits in Cursor, I switch to Claude Code in the terminal. No downtime. I can run the dev server in the background, make quick file edits, manage git commits, and deploy to Vercel—all without leaving the terminal. This isn't just about features; it's about continuous flow."
+
+**Actions:**
+- Show dev server running: `npm run dev` in background
+- Make a quick edit to a file using Claude Code
+- Show git workflow: `git status`, `git log --oneline -5`
+- Demonstrate switching from Cursor when rate limited
+
+**Commands to demo:**
 ```bash
-npm run dev  # Running in background
-git status   # Check changes
-npm run lint # Fix type errors
+npm run dev  # Show running in background
+git log --oneline -5
+git status
+# Make a quick edit via Claude Code
+# Show the file changed
 ```
 
-**Show:**
-- Terminal split view
-- Background process monitoring
-- Quick file edits via CLI
-
-**Example 2: Vercel Deployment + Env Var Setup**
-```bash
-# Set up Replicate API integration
-cp .env.local.example .env.local
-# Deploy to Vercel with serverless functions
-vercel --prod
-```
-
-**Example 3: Git Workflow**
-```bash
-git add .
-git commit -m "Add atlas generation with caching"
-git push origin main
-```
+**Key point:** "Two tools = resilience. When one rate limits, switch to the other."
 
 ---
 
-### **Act 4: Technical Highlights (5:00-7:00)**
-*Show the most impressive parts of the implementation*
+### Scene 6: Real Problems Solved (5:00-6:00)
 
-#### **1. ONNX Depth Inference in Browser**
+**What to show:** Actual debugging journey from chat exports
+
+**What to say:**
+> "AI coding isn't magic. Here are real problems I hit: Image aspect ratios were broken in atlas mode—images were zoomed in. The fix? Understanding how canvas drawing works and inverting the aspect-fit logic. Cross-browser caching failed because JPEG compression is non-deterministic. The fix? Hash raw pixel data instead of compressed images. These took iterations."
+
+**Problem 1: Image Aspect Ratio Bug**
+- From: `chat_exports/cursor_fix_image_aspect_ratio_in_app.md`
+- Issue: "Atlas images were zoomed in, not maintaining aspect ratio"
+- Root cause: Inverted aspect-fit logic in canvas drawing
+- Show git diff of the fix (Viewer.tsx lines 713-734)
+- Cursor's browser integration helped identify rendering issue
+
+**Problem 2: Cross-Browser Caching**
+- From: `chat_exports/cursor_crop_images_to_square_format.md`
+- Issue: "Same demo image has different hashes in different browsers"
+- Root cause: JPEG compression is non-deterministic
+- Solution: Hash raw pixel data instead of compressed images
+- Show: Before (broken caching) vs After (shared cache)
+
+**Problem 3: User Experience Polish**
+- From: `chat_exports/cursor_add_quick_access_button_for_prof.md`
+- Added quick-access button for example portrait
+- Made it "friendlier looking" with sparkle animation
+- Small touches that make the app delightful
+
+**Key files:**
+- `chat_exports/cursor_fix_image_aspect_ratio_in_app.md` (lines 1-50)
+- `chat_exports/cursor_crop_images_to_square_format.md` (lines 85-130)
+- Git diff: `git show <commit-hash>`
+
+**Talking point:** "Cursor helped me understand root causes, Claude Code helped implement fixes quickly."
+
+---
+
+### Scene 7: Technical Deep Dive (6:00-7:30)
+
+**What to say:**
+> "Let me show you the most technically interesting parts. First, ONNX depth inference—235MB model running in-browser with WebGPU/WebGL/WASM fallback. Second, custom vertex shaders that displace vertices based on depth. Third, the cursor mapping algorithm with dead zones and EMA smoothing. Finally, Vercel serverless functions calling Replicate API to generate atlas images."
+
+#### 1. ONNX Inference (45 sec)
+- Open: `src/lib/depth/onnxRunner.ts` (lines 40-60)
+- Highlight: Provider fallback chain
+- Show: Browser console with provider selection logs
+
 ```typescript
-// src/lib/depth/onnxRunner.ts
 // 235MB model running with WebGPU/WebGL/WASM fallback
 const session = await InferenceSession.create(modelPath, {
   executionProviders: ['webgpu', 'webgl', 'wasm']
@@ -124,7 +232,11 @@ const session = await InferenceSession.create(modelPath, {
 - Runs entirely client-side
 - Automatic provider fallback
 
-#### **2. Custom WebGL Shaders**
+#### 2. Custom Shaders (45 sec)
+- Open: `src/lib/three/createScene.ts` (lines 20-50)
+- Highlight: Vertex displacement code
+- Show: Side-by-side depth map and result
+
 ```glsl
 // Vertex shader displaces vertices based on depth
 vec3 displaced = pos + normal * (depth - 0.5) * depthScale;
@@ -132,11 +244,14 @@ displaced.x += sin(yaw) * depth * depthScale;
 displaced.y += sin(pitch) * depth * depthScale;
 ```
 
-**Visual:** Show the parallax effect side-by-side with code
+**Visual:** Show parallax effect side-by-side with code
 
-#### **3. Cursor Mapping Algorithm**
+#### 3. Cursor Mapping (45 sec)
+- Open: `src/lib/cursor/mapInput.ts` (lines 50-80)
+- Highlight: Dead zone, EMA smoothing, clamping
+- Show: Debug panel with real-time yaw/pitch values
+
 ```typescript
-// src/lib/cursor/mapInput.ts
 // Dead zone + EMA smoothing + angle clamps
 const yaw = clamp(nx * 12, -12, 12)
 state.yaw = lerp(state.yaw, yaw, emaAlpha) // Smooth interpolation
@@ -144,23 +259,32 @@ state.yaw = lerp(state.yaw, yaw, emaAlpha) // Smooth interpolation
 
 **Why it's cool:** Creates natural, jitter-free motion
 
-#### **4. Serverless Atlas Generation**
+#### 4. Serverless Atlas Generation (45 sec)
+- Open: `api/generate-gaze.ts`
+- Open: `src/lib/replicate/generateGaze.ts` (lines 20-50)
+- Show: AtlasGenerator UI in action
+
 ```typescript
-// api/generate-gaze.ts
 // Vercel serverless function → Replicate API
 // Keeps API key secure, generates on-demand
 const result = await generateGazeImage({ image, px, py })
 ```
 
-**Show:** The AtlasGenerator UI in action
+**Files to screen record:**
+- Each file mentioned above
+- Browser with debug panel enabled
+- Browser showing atlas generation progress
 
 ---
 
-### **Act 5: The Rate Limit Dance (7:00-8:00)**
-*The reality of using AI coding assistants*
+### Scene 8: The Rate Limit Dance (7:30-8:30)
+
+**What to show:** Switching between tools
+
+**What to say:**
+> "Here's the honest reality: you hit rate limits. A lot. But with two tools, I'm never blocked. Working in Cursor, hit limit—switch to Claude Code, continue in terminal. By the time I need visual debugging again, Cursor's refreshed. This is the real workflow."
 
 **Show the workflow:**
-
 ```
 Working in Cursor → Hit rate limit
    ↓
@@ -171,28 +295,44 @@ Cursor refreshes → Switch back for visual work
 Repeat!
 ```
 
-**Key Insight:**
-"Having two AI assistants isn't just about features—it's about **resilience**. When one hits rate limits, I switch to the other. No downtime, continuous flow."
+**Actions:**
+- Show rate limit message in Cursor (screenshot or recreate)
+- Switch to Claude Code terminal
+- Show continuing work
+- Switch back to Cursor
+
+**Visual:** Split screen showing both tools side-by-side
+
+**Key Insight:** "Having two AI assistants isn't just about features—it's about resilience. When one hits rate limits, I switch to the other. No downtime, continuous flow."
 
 ---
 
-### **Act 6: Results & Learnings (8:00-9:30)**
+### Scene 9: Results & Learnings (8:30-10:00)
 
-**Show the final app:**
-- Live demo: Upload image → Generate depth → Smooth tracking
-- Show atlas mode: Generate gaze grid → Switch images
-- Performance: 60 FPS on mid-tier laptop
-- Deployment: Live on Vercel
+**What to show:** Final app demo + key stats
+
+**What to say:**
+> "So what did we build? A production-ready face-tracking app that runs at 60 FPS on mid-tier laptops. It handles depth-based parallax AND atlas-based gaze tracking. It's deployed on Vercel with serverless functions. And the entire codebase is TypeScript with strict mode—no runtime surprises."
+
+**Actions:**
+- Upload a portrait image
+- Show depth generation (use example image for speed)
+- Demonstrate cursor tracking smoothly
+- Switch to atlas mode
+- Show atlas generation UI
+- Use quick-access button
+- Display FPS counter
 
 **Stats to Highlight:**
 - 517 lines: Viewer.tsx (core orchestrator)
 - 175 lines: createScene.ts (Three.js + shaders)
-- 235 MB: ONNX depth model
-- 121 images: Default atlas grid
-- 2 tools: Cursor + Claude Code
+- 235 MB: ONNX depth model running in-browser
+- 121 images: Default atlas grid (11×11)
+- 83,107 lines: Total chat export logs (real development process)
+- 6 major debugging sessions captured in chat exports
+- 2 tools: Cursor + Claude Code working in tandem
 
 **Key Learnings:**
-
 1. **Cursor excels at:** Visual debugging, component refactoring, inline errors
 2. **Claude Code excels at:** Terminal workflows, git operations, background tasks
 3. **Together:** Complementary strengths, rate limit resilience
@@ -201,7 +341,19 @@ Repeat!
 
 ---
 
-### **Conclusion (9:30-10:00)**
+### Scene 10: Conclusion (10:00-10:30)
+
+**What to show:** GitHub repo + links
+
+**What to say:**
+> "The future of coding isn't about choosing one AI tool—it's about orchestrating multiple tools strategically. Cursor for visuals, Claude Code for terminals. Why limit yourself?
+>
+> The code is open source on GitHub, there's a live demo link in the description, and I'd love to hear which approach you prefer—depth or atlas mode. Drop a comment and let me know. Thanks for watching!"
+
+**Actions:**
+- Show final smooth tracking
+- Display GitHub and demo links
+- End screen with subscribe button
 
 **Call to Action:**
 - GitHub repo link
@@ -209,12 +361,226 @@ Repeat!
 - "Try it yourself—upload your portrait"
 - "Comment which AI coding tool you prefer"
 
-**Final Thought:**
-"The future of coding isn't about choosing ONE AI tool—it's about orchestrating MULTIPLE tools strategically. Cursor for visuals, Claude Code for terminals. Why limit yourself?"
+---
+
+## 📝 Copy-Paste Script Template
+
+**Use this if you want to just read and record:**
+
+```
+[SCENE 1 - HOOK]
+"This portrait follows my cursor in real-time, entirely in the browser.
+No Python backend, no external services—just TypeScript and WebGL.
+But here's the twist: I built this using TWO AI coding assistants,
+switching between them strategically. Let me show you why."
+
+[Show demo - move cursor around]
+
+[SCENE 2 - THE JOURNEY]
+"This project started with Wes Bos's viral tweet about face tracking.
+I found two approaches: depth-based parallax and AI-generated gaze images.
+Most people pick one. I built both. And here's what that actually looked like."
+
+[Show chat_exports/ folder]
+
+"These are my exported chat logs from Cursor—over 83,000 lines of debugging
+conversations. The AI helped me solve real problems: aspect ratio bugs,
+image caching, deterministic hashing. This wasn't magic—it was iteration."
+
+[Show ls -lh chat_exports/]
+
+[SCENE 3 - DUAL WORKFLOW]
+"I use Cursor when I need visual feedback. Watch: I'm editing the shader code,
+and Cursor shows inline errors and autocompletes Three.js types."
+
+[Show Cursor IDE with createScene.ts]
+
+"But when I hit rate limits—and you will hit rate limits—I switch to Claude Code
+in the terminal. No downtime. I keep working: run tests, manage git, deploy to Vercel."
+
+[Show Claude Code terminal]
+
+"Two tools means I'm never blocked. That's the real workflow."
+
+[SCENE 4 - REAL PROBLEMS]
+"AI coding isn't magic. Here's a real problem: atlas images were zoomed in.
+The fix? Understanding canvas drawing and inverting the aspect-fit logic.
+Cross-browser caching failed because JPEG compression is non-deterministic.
+The fix? Hash raw pixel data instead. These took iterations."
+
+[Show chat export files and git diffs]
+
+[SCENE 5 - TECHNICAL HIGHLIGHTS]
+"Let me show you the coolest parts. This 235MB ONNX depth model runs entirely
+in your browser with automatic fallback from WebGPU to WebGL to WebAssembly."
+
+[Show onnxRunner.ts]
+
+"The vertex shader displaces vertices based on depth, creating the parallax effect."
+
+[Show createScene.ts shader code]
+
+"The cursor mapping uses dead zones and exponential smoothing for natural motion."
+
+[Show mapInput.ts]
+
+"And the atlas generation uses Vercel serverless functions to call Replicate API,
+keeping the API key secure."
+
+[Show api/generate-gaze.ts]
+
+[SCENE 6 - FINAL DEMO]
+"Here's the final result. Upload an image—depth inference runs in-browser.
+The portrait follows at 60 FPS. Switch to atlas mode and generate 121 gaze images.
+All deployed on Vercel."
+
+[Show full demo]
+
+[SCENE 7 - CLOSING]
+"The code's open source—link in the description. The key lesson? Don't pick one
+AI tool. Use multiple strategically. Cursor for visuals, Claude Code for terminals.
+Why limit yourself? Try it and let me know what you build."
+
+[Show GitHub link]
+```
 
 ---
 
-## 🎥 Visual B-Roll Suggestions
+## 🎤 Talking Points Cheat Sheet
+
+### Opening Hook
+- "Built entirely in browser, no backend"
+- "Used TWO AI tools strategically"
+- "Let me show you why"
+
+### The Journey
+- "83,107 lines of debugging conversations"
+- "AI helped iterate, not instant solve"
+- "This is what AI coding actually looks like"
+
+### Cursor Strengths
+- "Visual debugging"
+- "Inline errors and autocomplete"
+- "Browser integration"
+- "Component-level work"
+
+### Claude Code Strengths
+- "Terminal workflows"
+- "Background processes"
+- "Git operations"
+- "Quick file edits"
+
+### Technical Highlights
+- "235MB model in browser"
+- "Custom WebGL shaders"
+- "Dead zone + EMA smoothing"
+- "Serverless Replicate API"
+
+### Real Problems
+- "Aspect ratio bug—inverted logic"
+- "Cross-browser caching—hash pixel data"
+- "Iterations, not magic"
+
+### Rate Limit Reality
+- "Hit limits often"
+- "Two tools = no downtime"
+- "Continuous flow"
+
+### Key Lesson
+- "Don't pick one tool"
+- "Use multiple strategically"
+- "Resilience through redundancy"
+
+---
+
+## 🎬 Simplified 5-Minute Version
+
+**If short on time, record these 3 scenes:**
+
+### Scene 1: Hook + Demo (1 min)
+- Show final app working
+- "Built with two AI tools switching between them"
+
+### Scene 2: The Workflow (3 min)
+- Split screen: Cursor for visual work, Claude Code for terminal
+- Show real problem from chat exports: aspect ratio bug
+- Show rate limit switching
+
+### Scene 3: Results + Lesson (1 min)
+- Final demo
+- "Use multiple AI tools strategically"
+- Links
+
+**Total: 5 minutes**
+
+---
+
+## 📊 Recording Checklist
+
+### Priority 1 (Must Have)
+- [ ] Final app demo with cursor tracking
+- [ ] Uploading image → depth generation → tracking
+- [ ] Atlas mode demonstration
+- [ ] Quick-access button in action
+
+### Priority 2 (Highly Recommended)
+- [ ] Cursor IDE: editing `createScene.ts` with autocomplete
+- [ ] Cursor IDE: browser dev tools integration
+- [ ] Claude Code: terminal workflow (dev server, git)
+- [ ] Rate limit message (screenshot) + switching tools
+- [ ] Chat exports folder with file sizes
+
+### Priority 3 (Nice to Have)
+- [ ] Git commit history showing iterations
+- [ ] Side-by-side code + result for shaders
+- [ ] Atlas generation progress UI
+
+### Pre-Production
+- [ ] Set up screen recording (1080p or 4K)
+- [ ] Clean up desktop/browser tabs
+- [ ] Prepare 2-3 sample portraits for demo
+- [ ] Test both Cursor and Claude Code environments
+- [ ] Have Vercel deployment ready
+
+### Post-Production
+- [ ] Add text overlays for code snippets
+- [ ] Highlight key lines of code (yellow boxes)
+- [ ] Add arrows/annotations for important features
+- [ ] Speed up slow parts (model loading, atlas generation)
+- [ ] Background music (low volume, non-distracting)
+- [ ] End screen with links
+
+---
+
+## 🎯 One-Sentence Summary of Each Scene
+
+1. **Hook:** Face tracks cursor, built with two AI tools
+2. **Inspiration + Journey:** Wes Bos tweet, 83K lines of debugging chats
+3. **Architecture:** Depth mode (ONNX + shaders) vs Atlas mode (AI images)
+4. **Cursor Workflow:** Visual debugging, inline errors, browser integration
+5. **Claude Code Workflow:** Terminal work, git, no downtime on rate limits
+6. **Real Problems:** Aspect ratio, caching, UX polish—iterations, not magic
+7. **Technical Deep Dive:** ONNX in browser, shaders, cursor mapping, serverless
+8. **Rate Limit Dance:** Two tools = continuous flow
+9. **Results:** Production app, 60 FPS, deployed on Vercel
+10. **Closing:** Use multiple AI tools strategically
+
+---
+
+## 💡 Pro Tips
+
+1. **Talk while coding:** Don't edit in silence. Narrate what you're thinking.
+2. **Show failures:** The aspect ratio bug makes the success more compelling.
+3. **Use split screen:** Show Cursor + Claude Code side-by-side.
+4. **Speed up boring parts:** Model loading, atlas generation—fast-forward in editing.
+5. **Add text overlays:** Highlight key code lines with yellow boxes.
+6. **Background music:** Low volume, non-distracting.
+7. **Energy:** Keep energy high but not frantic. Enthusiasm is contagious.
+8. **Show, don't tell:** Let the code and visuals speak.
+
+---
+
+## 🎥 Visual B-Roll Ideas
 
 1. **Screen recordings:**
    - Cursor IDE: Inline errors, autocomplete, browser integration
@@ -245,261 +611,14 @@ Repeat!
 
 1. **Dual-tool workflow** - Most coding videos show one tool. You show strategic switching.
 2. **Real technical depth** - Custom shaders, ONNX in browser, serverless integration
-3. **Two implementation approaches** - Depth vs Atlas (inspired by the tweets)
-4. **Rate limit resilience** - Honest about limitations, practical solution
-5. **Production-ready** - Deployed on Vercel, not just localhost
+3. **Real iteration** - 83K lines of chat logs show actual debugging process
+4. **Two implementation approaches** - Depth vs Atlas (inspired by tweets)
+5. **Rate limit resilience** - Honest about limitations, practical solution
+6. **Production-ready** - Deployed on Vercel, not just localhost
 
 ---
 
-## 📊 Suggested Timestamps for Description
-
-```
-0:00 - The Result (Face Tracking Demo)
-0:15 - Inspiration (Wes Bos Tweet + Two Approaches)
-1:00 - Architecture Overview (Depth + Atlas Modes)
-2:30 - Cursor IDE Workflow (Visual Debugging)
-4:00 - Claude Code Workflow (Terminal Power)
-5:00 - Technical Deep Dive (ONNX, Shaders, Algorithms)
-7:00 - The Rate Limit Dance (Switching Tools)
-8:00 - Final Results & Performance
-9:30 - Conclusion & Links
-```
-
----
-
-## 🎬 Recording Checklist
-
-### Pre-Production
-- [ ] Set up screen recording (1080p or 4K)
-- [ ] Clean up desktop/browser tabs
-- [ ] Prepare sample portraits for demo
-- [ ] Test both Cursor and Claude Code environments
-- [ ] Have Vercel deployment ready
-- [ ] Prepare tweet screenshots from RESEARCH.md
-
-### Cursor IDE Scenes
-- [ ] Record shader debugging with inline errors
-- [ ] Show TypeScript autocomplete in Upload.tsx
-- [ ] Demonstrate browser dev tools integration
-- [ ] Show visual diff for component changes
-- [ ] Record rate limit message (authentic!)
-
-### Claude Code Scenes
-- [ ] Record terminal workflow (dev server in background)
-- [ ] Show git operations (status, commit, push)
-- [ ] Demonstrate quick file edits via CLI
-- [ ] Record Vercel deployment
-- [ ] Show switching from Cursor when rate limited
-
-### Technical Deep Dive
-- [ ] Screen record: ONNX model loading sequence
-- [ ] Show: createScene.ts with shader code highlighted
-- [ ] Demonstrate: Cursor mapping with visual overlay
-- [ ] Record: Atlas generation (full cycle)
-- [ ] Capture: FPS counter during smooth tracking
-
-### Live Demo
-- [ ] Upload multiple different portraits
-- [ ] Show depth map generation (fast-forward if needed)
-- [ ] Demonstrate smooth cursor tracking
-- [ ] Switch to atlas mode
-- [ ] Show performance metrics
-
-### Post-Production Notes
-- [ ] Add text overlays for code snippets
-- [ ] Highlight key lines of code (yellow boxes)
-- [ ] Add arrows/annotations for important features
-- [ ] Speed up slow parts (model loading, atlas generation)
-- [ ] Background music (low volume, non-distracting)
-- [ ] End screen with links
-
----
-
-## 🎤 Detailed Script (Scene by Scene)
-
-### Scene 1: Opening Hook (15 seconds)
-
-**Visual:** Full-screen demo of portrait following cursor smoothly
-
-**Voiceover:**
-"Check this out—this portrait follows my cursor in real-time, entirely in the browser. No Python backend, no external services, just pure TypeScript and WebGL. But here's what makes this project unique: I built it using TWO AI coding assistants, strategically switching between them. Let me show you how."
-
-**Action:** Move cursor around, show smooth tracking
-
----
-
-### Scene 2: The Inspiration (45 seconds)
-
-**Visual:** Show tweet from Wes Bos, reference implementation screenshots
-
-**Voiceover:**
-"This started with a viral tweet from Wes Bos about face-tracking effects. I found two fascinating approaches: one uses depth maps and WebGL shaders for continuous parallax, the other uses AI-generated gaze images in a grid pattern. Most people pick one approach. I said, why not build both?"
-
-**Action:** Split screen showing both approaches
-
-**On-screen text:**
-- Depth Mode: WebGL + ONNX
-- Atlas Mode: Replicate API + Image Grid
-
----
-
-### Scene 3: Architecture Overview (1:30)
-
-**Visual:** Code structure, file tree, architecture diagram
-
-**Voiceover:**
-"Let's break down the architecture. The depth-based approach uses a 235-megabyte ONNX model that runs entirely in your browser—yes, machine learning inference with no server. It generates a depth map, then Three.js shaders displace vertices based on cursor position.
-
-The atlas mode uses a different strategy: it generates 121 different gaze images using Replicate's AI API, then swaps them based on where your cursor is. Think of it like a flipbook animation, but for eye tracking.
-
-The key insight? Both modes share the same cursor mapping logic—dead zones, exponential smoothing, and angle clamping for natural motion."
-
-**Action:** Animate the data flow diagram
-
----
-
-### Scene 4: Cursor IDE in Action (1:30)
-
-**Visual:** Screen recording in Cursor with live coding
-
-**Voiceover:**
-"Here's where the dual-tool strategy comes in. I use Cursor IDE when I need visual feedback. Watch this—I'm editing the vertex shader, and Cursor shows me inline type errors immediately. The autocomplete understands the Three.js API, the TypeScript types, everything.
-
-When I'm debugging the Three.js scene, Cursor's browser integration is unbeatable. I can inspect the scene graph, check uniform values, and see shader compilation errors right in the IDE. For component-level work and visual debugging, Cursor is my go-to."
-
-**Action:**
-- Show inline error in shader code
-- Demonstrate autocomplete
-- Show browser dev tools integration
-- Fix a bug with visual feedback
-
----
-
-### Scene 5: Claude Code in Action (1:30)
-
-**Visual:** Terminal screen with Claude Code
-
-**Voiceover:**
-"But when I need to work with the terminal, git operations, or run background processes, I switch to Claude Code. Watch—I can run the dev server in the background, monitor the output, and make quick edits without leaving the terminal.
-
-Claude Code excels at workflow automation. Setting up environment variables, deploying to Vercel, managing git commits—all of this is faster in the terminal. And here's the real trick: when Cursor hits its rate limit, I just switch to Claude Code and keep working. No downtime."
-
-**Action:**
-- Show dev server running in background
-- Execute git commands
-- Make a quick file edit
-- Show rate limit message → switch tools
-
----
-
-### Scene 6: Technical Deep Dive (2:00)
-
-**Visual:** Code walkthroughs with highlighted sections
-
-**Voiceover:**
-"Let me show you the most technically interesting parts. First, the ONNX inference. This depth estimation model is 235 megabytes, and it runs entirely client-side using WebGPU, WebGL, or WebAssembly as a fallback. No server needed.
-
-Second, the custom shaders. The vertex shader samples the depth map and displaces each vertex based on the cursor's yaw and pitch. The math is actually quite elegant—we use sine waves to create the parallax effect.
-
-Third, the cursor mapping algorithm. We normalize cursor position, apply a dead zone to prevent jitter, use exponential moving average for smoothing, and clamp to realistic head rotation angles. This is what makes the motion feel natural.
-
-Finally, the atlas generation. We use Vercel serverless functions to call the Replicate API, keeping our API key secure. The function generates images on-demand and caches them for performance."
-
-**Action:**
-- Highlight code sections as mentioned
-- Show side-by-side comparison of shader effect
-- Visualize the cursor mapping algorithm
-- Show atlas generation in real-time
-
----
-
-### Scene 7: The Rate Limit Dance (1:00)
-
-**Visual:** Split screen showing both tools, switching between them
-
-**Voiceover:**
-"Here's the honest truth about using AI coding assistants: you hit rate limits. A lot. But having two tools changes the game completely.
-
-I'm working in Cursor, building out a component, and boom—rate limit. Instead of waiting, I immediately switch to Claude Code, continue in the terminal, push some changes, run tests. By the time I need visual debugging again, Cursor's refreshed and I switch back.
-
-This isn't just about features—it's about resilience and continuous flow. Two tools mean you're never blocked."
-
-**Action:**
-- Show rate limit message in Cursor
-- Switch to Claude Code terminal
-- Continue working
-- Switch back to Cursor
-- Overlay: "No downtime, continuous productivity"
-
----
-
-### Scene 8: Results & Learnings (1:30)
-
-**Visual:** Live demo of final app, performance metrics
-
-**Voiceover:**
-"So what did we build? A production-ready face-tracking app that runs at 60 FPS on mid-tier laptops. It handles depth-based parallax AND atlas-based gaze tracking. It's deployed on Vercel with serverless functions. And the entire codebase is TypeScript with strict mode—no runtime surprises.
-
-Here's what I learned: Cursor excels at visual debugging, component work, and inline errors. Claude Code excels at terminal workflows, git operations, and background tasks. Together, they're complementary tools with built-in rate limit resilience.
-
-The architecture—clean separation between components, lib functions, and workers—made everything testable and maintainable. TypeScript strict mode caught bugs before they hit production. And the dual-implementation approach gave me deep insights into both depth-based and atlas-based rendering."
-
-**Action:**
-- Show app running smoothly
-- Display FPS counter
-- Upload different portraits
-- Show both modes working
-- Display key stats on screen
-
----
-
-### Scene 9: Conclusion (30 seconds)
-
-**Visual:** Final demo with links overlaid
-
-**Voiceover:**
-"The future of coding isn't about choosing one AI tool—it's about orchestrating multiple tools strategically. Cursor for visuals, Claude Code for terminals. Why limit yourself?
-
-The code is open source on GitHub, there's a live demo link in the description, and I'd love to hear which approach you prefer—depth or atlas mode. Drop a comment and let me know. Thanks for watching!"
-
-**Action:**
-- Show final smooth tracking
-- Display GitHub and demo links
-- End screen with subscribe button
-
----
-
-## 📝 Additional Notes
-
-### Tone & Pacing
-- Keep energy high but not frantic
-- Pause briefly between major sections
-- Use "show, don't tell" for technical concepts
-- Let the code and visuals speak
-
-### Music Suggestions
-- Upbeat but not distracting
-- Lower volume during voiceovers
-- Build energy during technical showcases
-- Smooth transitions between sections
-
-### Graphics to Create
-- Architecture diagram (data flow)
-- Tool comparison chart (Cursor vs Claude Code)
-- Performance metrics overlay
-- Code highlight boxes
-- Arrows/annotations for complex code
-
-### Common Pitfalls to Avoid
-- Don't spend too long on any one topic
-- Don't assume viewers know Three.js or ONNX
-- Don't get too technical without visual aids
-- Don't forget to show the final result multiple times
-- Don't skip the "why this matters" explanations
-
----
-
-## 🔗 Links for Description
+## 🔗 Links for Video Description
 
 **GitHub Repository:**
 [github.com/your-username/face-follow-mouse-cursor]
@@ -542,3 +661,54 @@ The code is open source on GitHub, there's a live demo link in the description, 
 
 **Key Message:**
 Using multiple AI coding tools strategically is more productive than relying on just one.
+
+---
+
+## 📝 Additional Notes
+
+### Tone & Pacing
+- Keep energy high but not frantic
+- Pause briefly between major sections
+- Use "show, don't tell" for technical concepts
+- Let the code and visuals speak
+
+### Music Suggestions
+- Upbeat but not distracting
+- Lower volume during voiceovers
+- Build energy during technical showcases
+- Smooth transitions between sections
+
+### Graphics to Create
+- Architecture diagram (data flow)
+- Tool comparison chart (Cursor vs Claude Code)
+- Performance metrics overlay
+- Code highlight boxes
+- Arrows/annotations for complex code
+
+### Common Pitfalls to Avoid
+- Don't spend too long on any one topic
+- Don't assume viewers know Three.js or ONNX
+- Don't get too technical without visual aids
+- Don't forget to show the final result multiple times
+- Don't skip the "why this matters" explanations
+
+---
+
+## 🚦 Ready to Record?
+
+**Option A: Full 10-minute video**
+Go through all 10 scenes. Record 30-45 min of footage, edit down to 10 minutes.
+
+**Option B: Quick 5-minute video**
+Record 3 key scenes (Hook + Workflow + Results), edit down to 5 minutes.
+
+**Option C: Just start NOW**
+1. Open the app in browser
+2. Start screen recording
+3. Use the [Copy-Paste Script Template](#-copy-paste-script-template)
+4. Read it while demoing
+5. Done.
+
+---
+
+## 🎥 You're Ready. Hit Record.
