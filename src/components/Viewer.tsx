@@ -3,7 +3,7 @@ import * as THREE from 'three'
 import { OnnxDepthRunner } from '../lib/depth/onnxRunner'
 import { createScene, updateMeshSubdivisions } from '../lib/three/createScene'
 import { CursorMapper } from '../lib/cursor/mapInput'
-import { useAtlasMode } from '../lib/atlas/useAtlasMode'
+import { useAtlasMode, cursorToGridCoords, createAtlasKey } from '../lib/atlas/useAtlasMode'
 import { CONFIG, ATLAS_CONFIG } from '../config'
 import Controls from './Controls'
 import AtlasPreview from './AtlasPreview'
@@ -613,20 +613,34 @@ export default function Viewer({
           const atlasAspect = img.width / img.height
           const originalAspect = originalDims.width / originalDims.height
           
-          let drawWidth = originalDims.width
-          let drawHeight = originalDims.height
+          let drawWidth: number
+          let drawHeight: number
           let drawX = 0
           let drawY = 0
 
           if (atlasAspect > originalAspect) {
-            drawHeight = originalDims.height
-            drawWidth = drawHeight * atlasAspect
-            drawX = (originalDims.width - drawWidth) / 2
-          } else {
+            // Atlas is wider ⇒ fit to width, center vertically
             drawWidth = originalDims.width
             drawHeight = drawWidth / atlasAspect
             drawY = (originalDims.height - drawHeight) / 2
+          } else {
+            // Atlas is taller or equal ⇒ fit to height, center horizontally
+            drawHeight = originalDims.height
+            drawWidth = drawHeight * atlasAspect
+            drawX = (originalDims.width - drawWidth) / 2
           }
+
+          // Round to integers to avoid sub-pixel sampling drift
+          drawWidth = Math.round(drawWidth)
+          drawHeight = Math.round(drawHeight)
+          drawX = Math.round(drawX)
+          drawY = Math.round(drawY)
+
+          // Round to integers to avoid sub-pixel sampling drift
+          drawWidth = Math.round(drawWidth)
+          drawHeight = Math.round(drawHeight)
+          drawX = Math.round(drawX)
+          drawY = Math.round(drawY)
 
           canvas.width = originalDims.width
           canvas.height = originalDims.height
@@ -716,21 +730,21 @@ export default function Viewer({
           const atlasAspect = img.width / img.height
           const originalAspect = originalDims.width / originalDims.height
           
-          let drawWidth = originalDims.width
-          let drawHeight = originalDims.height
+          let drawWidth: number
+          let drawHeight: number
           let drawX = 0
           let drawY = 0
 
           if (atlasAspect > originalAspect) {
-            // Atlas is wider - fit to height, center horizontally
-            drawHeight = originalDims.height
-            drawWidth = drawHeight * atlasAspect
-            drawX = (originalDims.width - drawWidth) / 2
-          } else {
-            // Atlas is taller - fit to width, center vertically
+            // Atlas is wider ⇒ fit to width, center vertically
             drawWidth = originalDims.width
             drawHeight = drawWidth / atlasAspect
             drawY = (originalDims.height - drawHeight) / 2
+          } else {
+            // Atlas is taller or equal ⇒ fit to height, center horizontally
+            drawHeight = originalDims.height
+            drawWidth = drawHeight * atlasAspect
+            drawX = (originalDims.width - drawWidth) / 2
           }
 
           canvas.width = originalDims.width
