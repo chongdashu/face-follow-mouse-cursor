@@ -610,40 +610,41 @@ export default function Viewer({
         }
 
         if (originalDims) {
-          const atlasAspect = img.width / img.height
-          const originalAspect = originalDims.width / originalDims.height
-          
-          let drawWidth: number
-          let drawHeight: number
-          let drawX = 0
-          let drawY = 0
-
-          if (atlasAspect > originalAspect) {
-            // Atlas is wider ⇒ fit to width, compute height precisely and center vertically
-            drawWidth = originalDims.width
-            const drawHeightFloat = drawWidth / atlasAspect
-            const drawYFloat = (originalDims.height - drawHeightFloat) / 2
-            drawY = Math.floor(drawYFloat)
-            drawHeight = originalDims.height - drawY * 2 // ensure exact fill without 1px gap
-          } else {
-            // Atlas is taller or equal ⇒ fit to height, compute width precisely and center horizontally
-            drawHeight = originalDims.height
-            const drawWidthFloat = drawHeight * atlasAspect
-            const drawXFloat = (originalDims.width - drawWidthFloat) / 2
-            drawX = Math.floor(drawXFloat)
-            drawWidth = originalDims.width - drawX * 2 // ensure exact fill without 1px gap
-          }
-
           canvas.width = originalDims.width
           canvas.height = originalDims.height
-          ctx.fillStyle = '#000000'
-          ctx.fillRect(0, 0, canvas.width, canvas.height)
-          ctx.imageSmoothingEnabled = true
-          ctx.imageSmoothingQuality = 'high'
-          ctx.drawImage(img, drawX, drawY, drawWidth, drawHeight)
+
+          const sameSize = img.width === originalDims.width && img.height === originalDims.height
+          if (sameSize) {
+            ctx.imageSmoothingEnabled = false
+            ctx.drawImage(img, 0, 0)
+          } else {
+            const atlasAspect = img.width / img.height
+            const originalAspect = originalDims.width / originalDims.height
+
+            let drawX = 0
+            let drawY = 0
+            let drawWidth = originalDims.width
+            let drawHeight = originalDims.height
+
+            if (atlasAspect > originalAspect) {
+              const h = originalDims.width / atlasAspect
+              drawY = Math.floor((originalDims.height - h) / 2)
+              drawHeight = originalDims.height - drawY * 2
+            } else {
+              const w = originalDims.height * atlasAspect
+              drawX = Math.floor((originalDims.width - w) / 2)
+              drawWidth = originalDims.width - drawX * 2
+            }
+
+            ctx.imageSmoothingEnabled = true
+            ctx.imageSmoothingQuality = 'high'
+            ctx.clearRect(0, 0, canvas.width, canvas.height)
+            ctx.drawImage(img, drawX, drawY, drawWidth, drawHeight)
+          }
         } else {
           canvas.width = img.width
           canvas.height = img.height
+          ctx.imageSmoothingEnabled = false
           ctx.drawImage(img, 0, 0)
         }
 
@@ -717,50 +718,46 @@ export default function Viewer({
         }
 
         if (originalDims) {
-          // Resize atlas image to match original portrait dimensions while maintaining aspect ratio
-          // Use letterboxing/pillarboxing to preserve aspect ratio
-          const atlasAspect = img.width / img.height
-          const originalAspect = originalDims.width / originalDims.height
-          
-          let drawWidth: number
-          let drawHeight: number
-          let drawX = 0
-          let drawY = 0
-
-          if (atlasAspect > originalAspect) {
-            // Atlas is wider ⇒ fit to width, compute exact height and center vertically
-            drawWidth = originalDims.width
-            const drawHeightFloat = drawWidth / atlasAspect
-            const drawYFloat = (originalDims.height - drawHeightFloat) / 2
-            drawY = Math.floor(drawYFloat)
-            drawHeight = originalDims.height - drawY * 2
-          } else {
-            // Atlas is taller or equal ⇒ fit to height, compute exact width and center horizontally
-            drawHeight = originalDims.height
-            const drawWidthFloat = drawHeight * atlasAspect
-            const drawXFloat = (originalDims.width - drawWidthFloat) / 2
-            drawX = Math.floor(drawXFloat)
-            drawWidth = originalDims.width - drawX * 2
-          }
-
           canvas.width = originalDims.width
           canvas.height = originalDims.height
-          
-          // Fill with black background (or transparent)
-          ctx.fillStyle = '#000000'
-          ctx.fillRect(0, 0, canvas.width, canvas.height)
-          
-          // Use high-quality image rendering to preserve color accuracy
-          ctx.imageSmoothingEnabled = true
-          ctx.imageSmoothingQuality = 'high'
-          
-          // Draw atlas image centered and scaled to fit
-          // This preserves the original image's color profile and prevents color shifts
-          ctx.drawImage(img, drawX, drawY, drawWidth, drawHeight)
+
+          const sameSize = img.width === originalDims.width && img.height === originalDims.height
+          if (sameSize) {
+            // Exact match → true blit, no scaling, no offsets
+            ctx.imageSmoothingEnabled = false
+            ctx.drawImage(img, 0, 0)
+          } else {
+            // Letterbox fit to preserve aspect without cropping
+            const atlasAspect = img.width / img.height
+            const originalAspect = originalDims.width / originalDims.height
+
+            let drawX = 0
+            let drawY = 0
+            let drawWidth = originalDims.width
+            let drawHeight = originalDims.height
+
+            if (atlasAspect > originalAspect) {
+              // Wider → fit to width
+              const h = originalDims.width / atlasAspect
+              drawY = Math.floor((originalDims.height - h) / 2)
+              drawHeight = originalDims.height - drawY * 2
+            } else {
+              // Taller or equal → fit to height
+              const w = originalDims.height * atlasAspect
+              drawX = Math.floor((originalDims.width - w) / 2)
+              drawWidth = originalDims.width - drawX * 2
+            }
+
+            ctx.imageSmoothingEnabled = true
+            ctx.imageSmoothingQuality = 'high'
+            ctx.clearRect(0, 0, canvas.width, canvas.height)
+            ctx.drawImage(img, drawX, drawY, drawWidth, drawHeight)
+          }
         } else {
           // Fallback: use atlas image dimensions directly
           canvas.width = img.width
           canvas.height = img.height
+          ctx.imageSmoothingEnabled = false
           ctx.drawImage(img, 0, 0)
         }
 
@@ -793,73 +790,10 @@ export default function Viewer({
           console.warn('[ATLAS] Material or uniforms not found')
         }
 
-        // Generate depth map for this atlas image
-        // Check cache first
-        let atlasDepthMap = atlasDepthMapCacheRef.current.get(imageUrl)
-        
-        if (!atlasDepthMap && depthRunnerRef.current) {
-          try {
-            console.log('[ATLAS] Generating depth map for atlas image...')
-            // Convert processed canvas to ImageData
-            const depthCanvas = document.createElement('canvas')
-            depthCanvas.width = canvas.width
-            depthCanvas.height = canvas.height
-            const depthCtx = depthCanvas.getContext('2d')
-            if (!depthCtx) {
-              throw new Error('Could not get depth canvas context')
-            }
-            depthCtx.drawImage(canvas, 0, 0)
-            const imageData = depthCtx.getImageData(0, 0, depthCanvas.width, depthCanvas.height)
-
-            // Run depth inference
-            const depthResult = await depthRunnerRef.current.infer(imageData, true)
-            atlasDepthMap = depthResult.imageData
-
-            // Cache the depth map
-            atlasDepthMapCacheRef.current.set(imageUrl, atlasDepthMap)
-            console.log('[ATLAS] Depth map generated and cached')
-          } catch (depthError) {
-            console.warn('[ATLAS] Failed to generate depth map, using fallback:', depthError)
-            // Use fallback depth map
-            atlasDepthMap = createFallbackDepth(canvas.width, canvas.height)
-            atlasDepthMapCacheRef.current.set(imageUrl, atlasDepthMap)
-          }
-        } else if (atlasDepthMap) {
-          console.log('[ATLAS] Using cached depth map')
-        } else {
-          // No depth runner available, use fallback
-          console.log('[ATLAS] No depth runner, using fallback depth map')
-          atlasDepthMap = createFallbackDepth(canvas.width, canvas.height)
-          atlasDepthMapCacheRef.current.set(imageUrl, atlasDepthMap)
-        }
-
-        // Update depth texture
-        if (atlasDepthMap && sceneStateRef.current?.material?.uniforms?.depthMap) {
-          // Create depth texture from ImageData
-          const depthCanvas = document.createElement('canvas')
-          depthCanvas.width = atlasDepthMap.width
-          depthCanvas.height = atlasDepthMap.height
-          const depthCtx = depthCanvas.getContext('2d')
-          if (!depthCtx) {
-            throw new Error('Could not get depth canvas context')
-          }
-          depthCtx.putImageData(atlasDepthMap, 0, 0)
-          
-          // Dispose old depth texture
-          if (atlasDepthTextureRef.current) {
-            atlasDepthTextureRef.current.dispose()
-          }
-
-          const newDepthTexture = new THREE.CanvasTexture(depthCanvas)
-          newDepthTexture.flipY = true
-          newDepthTexture.needsUpdate = true
-          newDepthTexture.colorSpace = THREE.LinearSRGBColorSpace
-
-          atlasDepthTextureRef.current = newDepthTexture
-          sceneStateRef.current.material.uniforms.depthMap.value = newDepthTexture
+        // Always keep original depth map to avoid expensive per-atlas depth inference
+        if (sceneStateRef.current?.material?.uniforms?.depthMap && originalDepthTextureRef.current) {
+          sceneStateRef.current.material.uniforms.depthMap.value = originalDepthTextureRef.current
           sceneStateRef.current.material.uniformsNeedUpdate = true
-
-          console.log('[ATLAS] Depth texture updated')
         }
 
         // Force render update
