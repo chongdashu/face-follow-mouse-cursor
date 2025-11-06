@@ -116,8 +116,13 @@ export function useAtlasMode(
       imageUrl = imageMap.get('px0_py0')
     }
 
+    // Always update the image URL, even if it's the same
+    // This ensures React detects the change and triggers dependent effects
     if (imageUrl) {
       setCurrentImageUrl(imageUrl)
+    } else {
+      // Clear if no image found
+      setCurrentImageUrl(null)
     }
   }, [imageMap, cursorX, cursorY, containerWidth, containerHeight, config])
 

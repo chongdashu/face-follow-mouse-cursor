@@ -43,6 +43,7 @@ export default function Viewer({
   const atlasTextureRef = useRef<THREE.Texture | null>(null)
   const mousePositionRef = useRef({ x: 0, y: 0 })
   const atlasThrottleRef = useRef({ lastUpdateTime: 0 })
+  const originalPortraitDimensionsRef = useRef<{ width: number; height: number } | null>(null)
 
   const [isProcessing, setIsProcessing] = useState(!depthMap)
   const [error, setError] = useState<string | null>(null)
@@ -109,6 +110,7 @@ export default function Viewer({
   }, [generatedAtlas])
 
   // Use atlas mode hook to get current image
+  // This hook recalculates whenever mouse position or container dimensions change
   const atlasState = useAtlasMode(
     generatedAtlas || null,
     atlasMousePosition.x,
@@ -117,6 +119,17 @@ export default function Viewer({
     containerDimensions.height,
     atlasConfig
   )
+
+  // Debug: log when atlas state changes to help diagnose update issues
+  useEffect(() => {
+    if (generatedAtlas && atlasState.currentImageUrl) {
+      console.log('[ATLAS] Hook state updated:', {
+        imageUrl: atlasState.currentImageUrl.substring(0, 50) + '...',
+        gridCoords: atlasState.gridCoords,
+        mousePos: atlasMousePosition
+      })
+    }
+  }, [atlasState.currentImageUrl, atlasState.gridCoords, generatedAtlas, atlasMousePosition.x, atlasMousePosition.y])
 
   // Create fallback depth map (simple radial gradient)
   const createFallbackDepth = (width: number, height: number): ImageData => {
@@ -332,6 +345,12 @@ export default function Viewer({
           return
         }
 
+        // Store original portrait dimensions for atlas mode
+        originalPortraitDimensionsRef.current = {
+          width: portraitImage.width,
+          height: portraitImage.height
+        }
+
         // Create scene
         state = createScene(
           containerRef.current!,
@@ -447,7 +466,23 @@ export default function Viewer({
       if (generatedAtlas) {
         const now = performance.now()
         if (now - atlasThrottleRef.current.lastUpdateTime >= 33) { // ~30fps throttle
-          setAtlasMousePosition({ x, y })
+          // Always update mouse position to trigger hook recalculation
+          // Use functional update to ensure React detects the change
+          setAtlasMousePosition(prev => {
+            // Only update if position actually changed to avoid unnecessary re-renders
+            if (prev.x !== x || prev.y !== y) {
+              console.log('[ATLAS] Mouse position updated:', { 
+                x, 
+                y, 
+                prevX: prev.x, 
+                prevY: prev.y,
+                width: rect.width, 
+                height: rect.height 
+              })
+              return { x, y }
+            }
+            return prev
+          })
           atlasThrottleRef.current.lastUpdateTime = now
         }
       }
@@ -535,7 +570,7 @@ export default function Viewer({
     cursorMapperRef.current.setDeadZone(deadZonePercent)
   }, [deadZonePercent])
 
-  // Handler for previewing atlas images on hover
+  // Handler for previewing atlas images on hover (uses same processing as main atlas loading)
   const handleAtlasImagePreview = (imageUrl: string) => {
     if (!sceneStateRef.current || !generatedAtlas) {
       return
@@ -543,23 +578,59 @@ export default function Viewer({
 
     const loadAtlasTexture = async () => {
       try {
-        const loader = new THREE.TextureLoader()
-        const newTexture = await new Promise<THREE.Texture>((resolve, reject) => {
-          loader.load(
-            imageUrl,
-            (texture) => {
-              texture.flipY = true
-              texture.colorSpace = THREE.SRGBColorSpace
-              texture.needsUpdate = true
-              resolve(texture)
-            },
-            undefined,
-            (error) => {
-              console.warn(`Failed to load preview texture: ${error}`)
-              reject(error)
-            }
-          )
+        // Use the same aspect ratio preservation logic as main atlas loading
+        const img = new Image()
+        img.crossOrigin = 'anonymous'
+        
+        await new Promise<void>((resolve, reject) => {
+          img.onload = () => resolve()
+          img.onerror = () => reject(new Error('Failed to load preview image'))
+          img.src = imageUrl
         })
+
+        const originalDims = originalPortraitDimensionsRef.current
+        const canvas = document.createElement('canvas')
+        const ctx = canvas.getContext('2d')
+        if (!ctx) {
+          throw new Error('Could not get canvas context')
+        }
+
+        if (originalDims) {
+          const atlasAspect = img.width / img.height
+          const originalAspect = originalDims.width / originalDims.height
+          
+          let drawWidth = originalDims.width
+          let drawHeight = originalDims.height
+          let drawX = 0
+          let drawY = 0
+
+          if (atlasAspect > originalAspect) {
+            drawHeight = originalDims.height
+            drawWidth = drawHeight * atlasAspect
+            drawX = (originalDims.width - drawWidth) / 2
+          } else {
+            drawWidth = originalDims.width
+            drawHeight = drawWidth / atlasAspect
+            drawY = (originalDims.height - drawHeight) / 2
+          }
+
+          canvas.width = originalDims.width
+          canvas.height = originalDims.height
+          ctx.fillStyle = '#000000'
+          ctx.fillRect(0, 0, canvas.width, canvas.height)
+          ctx.imageSmoothingEnabled = true
+          ctx.imageSmoothingQuality = 'high'
+          ctx.drawImage(img, drawX, drawY, drawWidth, drawHeight)
+        } else {
+          canvas.width = img.width
+          canvas.height = img.height
+          ctx.drawImage(img, 0, 0)
+        }
+
+        const processedTexture = new THREE.CanvasTexture(canvas)
+        processedTexture.flipY = true
+        processedTexture.colorSpace = THREE.SRGBColorSpace
+        processedTexture.needsUpdate = true
 
         // Dispose old texture if it exists
         if (atlasTextureRef.current) {
@@ -567,9 +638,9 @@ export default function Viewer({
         }
 
         // Update scene texture
-        atlasTextureRef.current = newTexture
+        atlasTextureRef.current = processedTexture
         if (sceneStateRef.current?.material?.uniforms?.map) {
-          sceneStateRef.current.material.uniforms.map.value = newTexture
+          sceneStateRef.current.material.uniforms.map.value = processedTexture
           sceneStateRef.current.material.uniformsNeedUpdate = true
         }
       } catch (err) {
@@ -581,35 +652,100 @@ export default function Viewer({
   }
 
   // Handle atlas mode texture updates (when atlas image changes)
+  // Use currentAtlasImageUrl state which is updated by the effect below
   useEffect(() => {
-    if (!atlasState.currentImageUrl || !sceneStateRef.current || !generatedAtlas) {
+    if (!currentAtlasImageUrl || !sceneStateRef.current || !generatedAtlas) {
       return
     }
 
     // Capture the URL to avoid TypeScript null check issues in async function
-    const imageUrl = atlasState.currentImageUrl
+    const imageUrl = currentAtlasImageUrl
+    console.log('[ATLAS] Loading texture for URL:', imageUrl)
 
     const loadAtlasTexture = async () => {
       try {
-        // Create new texture from URL
-        const loader = new THREE.TextureLoader()
-        const newTexture = await new Promise<THREE.Texture>((resolve, reject) => {
-          loader.load(
-            imageUrl,
-            (texture) => {
-              // Configure texture properties
-              texture.flipY = true
-              texture.colorSpace = THREE.SRGBColorSpace
-              texture.needsUpdate = true
-              resolve(texture)
-            },
-            undefined,
-            (error) => {
-              console.warn(`[ATLAS] Failed to load atlas texture: ${error}`)
-              reject(error)
-            }
-          )
+        // Load image first to check dimensions and ensure proper aspect ratio
+        const img = new Image()
+        img.crossOrigin = 'anonymous'
+        
+        await new Promise<void>((resolve, reject) => {
+          img.onload = () => resolve()
+          img.onerror = () => reject(new Error('Failed to load atlas image'))
+          img.src = imageUrl
         })
+
+        // Get original portrait dimensions
+        const originalDims = originalPortraitDimensionsRef.current
+        if (!originalDims) {
+          console.warn('[ATLAS] Original portrait dimensions not available')
+        }
+
+        // Create canvas to resize/crop atlas image to match original portrait dimensions
+        // This ensures aspect ratio and prevents zoom/stretch issues
+        const canvas = document.createElement('canvas')
+        const ctx = canvas.getContext('2d')
+        if (!ctx) {
+          throw new Error('Could not get canvas context')
+        }
+
+        if (originalDims) {
+          // Resize atlas image to match original portrait dimensions while maintaining aspect ratio
+          // Use letterboxing/pillarboxing to preserve aspect ratio
+          const atlasAspect = img.width / img.height
+          const originalAspect = originalDims.width / originalDims.height
+          
+          let drawWidth = originalDims.width
+          let drawHeight = originalDims.height
+          let drawX = 0
+          let drawY = 0
+
+          if (atlasAspect > originalAspect) {
+            // Atlas is wider - fit to height, center horizontally
+            drawHeight = originalDims.height
+            drawWidth = drawHeight * atlasAspect
+            drawX = (originalDims.width - drawWidth) / 2
+          } else {
+            // Atlas is taller - fit to width, center vertically
+            drawWidth = originalDims.width
+            drawHeight = drawWidth / atlasAspect
+            drawY = (originalDims.height - drawHeight) / 2
+          }
+
+          canvas.width = originalDims.width
+          canvas.height = originalDims.height
+          
+          // Fill with black background (or transparent)
+          ctx.fillStyle = '#000000'
+          ctx.fillRect(0, 0, canvas.width, canvas.height)
+          
+          // Use high-quality image rendering to preserve color accuracy
+          ctx.imageSmoothingEnabled = true
+          ctx.imageSmoothingQuality = 'high'
+          
+          // Draw atlas image centered and scaled to fit
+          // This preserves the original image's color profile and prevents color shifts
+          ctx.drawImage(img, drawX, drawY, drawWidth, drawHeight)
+        } else {
+          // Fallback: use atlas image dimensions directly
+          canvas.width = img.width
+          canvas.height = img.height
+          ctx.drawImage(img, 0, 0)
+        }
+
+        // Create texture from processed canvas
+        const processedTexture = new THREE.CanvasTexture(canvas)
+        processedTexture.flipY = true
+        processedTexture.colorSpace = THREE.SRGBColorSpace
+        processedTexture.needsUpdate = true
+
+        console.log('[ATLAS] Loaded texture:', {
+          originalUrl: imageUrl,
+          atlasDimensions: { width: img.width, height: img.height },
+          originalDimensions: originalDims,
+          canvasDimensions: { width: canvas.width, height: canvas.height }
+        })
+
+        const newTexture = processedTexture
 
         // Dispose old texture if it exists
         if (atlasTextureRef.current) {
@@ -621,6 +757,14 @@ export default function Viewer({
         if (sceneStateRef.current?.material?.uniforms?.map) {
           sceneStateRef.current.material.uniforms.map.value = newTexture
           sceneStateRef.current.material.uniformsNeedUpdate = true
+          
+          // Force render update
+          if (sceneStateRef.current.renderer) {
+            sceneStateRef.current.renderer.render(
+              sceneStateRef.current.scene,
+              sceneStateRef.current.camera
+            )
+          }
         } else {
           console.warn('[ATLAS] Material or uniforms not found')
         }
@@ -634,7 +778,7 @@ export default function Viewer({
     return () => {
       // Don't dispose here - texture is reused in next update
     }
-  }, [atlasState, generatedAtlas])
+  }, [currentAtlasImageUrl, generatedAtlas]) // Use state that's updated by the effect below
 
   // Track container dimensions for atlas mode
   useEffect(() => {
@@ -683,11 +827,23 @@ export default function Viewer({
     // Always update grid coordinates so they follow cursor
     setCurrentGridCoords(atlasState.gridCoords)
 
-    // Update canvas image if URL changed
-    if (atlasState.currentImageUrl && atlasState.currentImageUrl !== currentAtlasImageUrl) {
-      setCurrentAtlasImageUrl(atlasState.currentImageUrl)
+    // Update canvas image if URL changed - this triggers the texture loading effect above
+    // Use a ref to track previous URL to avoid unnecessary updates
+    const newImageUrl = atlasState.currentImageUrl
+    if (newImageUrl && newImageUrl !== currentAtlasImageUrl) {
+      console.log('[ATLAS] Image URL changed:', {
+        old: currentAtlasImageUrl,
+        new: newImageUrl,
+        gridCoords: atlasState.gridCoords,
+        mousePos: atlasMousePosition
+      })
+      setCurrentAtlasImageUrl(newImageUrl)
+    } else if (!newImageUrl && currentAtlasImageUrl) {
+      // Clear if URL becomes null
+      console.log('[ATLAS] Image URL cleared')
+      setCurrentAtlasImageUrl(null)
     }
-  }, [atlasState, generatedAtlas, currentAtlasImageUrl])
+  }, [atlasState.currentImageUrl, atlasState.gridCoords, generatedAtlas, currentAtlasImageUrl, atlasMousePosition.x, atlasMousePosition.y])
 
   if (isProcessing) {
     return (
