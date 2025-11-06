@@ -3,7 +3,7 @@ import * as THREE from 'three'
 import { OnnxDepthRunner } from '../lib/depth/onnxRunner'
 import { createScene, updateMeshSubdivisions } from '../lib/three/createScene'
 import { CursorMapper } from '../lib/cursor/mapInput'
-import { useAtlasMode, cursorToGridCoords, createAtlasKey } from '../lib/atlas/useAtlasMode'
+import { useAtlasMode } from '../lib/atlas/useAtlasMode'
 import { CONFIG, ATLAS_CONFIG } from '../config'
 import Controls from './Controls'
 import AtlasPreview from './AtlasPreview'
@@ -182,8 +182,8 @@ export default function Viewer({
         }
 
         // Determine model path: use configured path, or try local then CDN
-        let modelPath = CONFIG.modelPath
-        
+        let modelPath: string = CONFIG.modelPath
+
         if (!modelPath) {
           // Auto-detect: try local first, then CDN
           const localPath = '/models/depth-anything-v2-small.onnx'
@@ -797,7 +797,7 @@ export default function Viewer({
         }
 
         // Force render update
-        if (sceneStateRef.current.renderer) {
+        if (sceneStateRef.current?.renderer && sceneStateRef.current?.scene && sceneStateRef.current?.camera) {
           sceneStateRef.current.renderer.render(
             sceneStateRef.current.scene,
             sceneStateRef.current.camera
@@ -907,12 +907,12 @@ export default function Viewer({
       }
 
       // Restore original depth texture
-      if (sceneStateRef.current.material?.uniforms?.depthMap) {
+      if (sceneStateRef.current?.material?.uniforms?.depthMap) {
         sceneStateRef.current.material.uniforms.depthMap.value = originalDepthTextureRef.current
         sceneStateRef.current.material.uniformsNeedUpdate = true
-        
+
         // Force render update
-        if (sceneStateRef.current.renderer) {
+        if (sceneStateRef.current?.renderer && sceneStateRef.current?.scene && sceneStateRef.current?.camera) {
           sceneStateRef.current.renderer.render(
             sceneStateRef.current.scene,
             sceneStateRef.current.camera
