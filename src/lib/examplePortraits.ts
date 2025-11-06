@@ -31,7 +31,7 @@ export const EXAMPLE_PORTRAITS: ExamplePortrait[] = [
   },
   {
     name: 'Portrait by Joseph Gonzalez',
-    url: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=800&q=80&fit=crop',
+    url: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=800&q=80&fit=crop&ar=1:1',
     photographer: 'Joseph Gonzalez',
     source: 'unsplash',
     license: 'Unsplash License (free to use)',
@@ -39,7 +39,7 @@ export const EXAMPLE_PORTRAITS: ExamplePortrait[] = [
   },
   {
     name: 'Portrait by Lianhao Qu',
-    url: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=800&q=80&fit=crop',
+    url: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=800&q=80&fit=crop&ar=1:1',
     photographer: 'Lianhao Qu',
     source: 'unsplash',
     license: 'Unsplash License (free to use)',
@@ -47,7 +47,7 @@ export const EXAMPLE_PORTRAITS: ExamplePortrait[] = [
   },
   {
     name: 'Portrait by Matheus Ferrero',
-    url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=800&q=80&fit=crop',
+    url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=800&q=80&fit=crop&ar=1:1',
     photographer: 'Matheus Ferrero',
     source: 'unsplash',
     license: 'Unsplash License (free to use)',
