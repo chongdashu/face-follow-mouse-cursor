@@ -438,6 +438,8 @@ export default function Viewer({
         material.uniforms.yaw.value = 0
         material.uniforms.pitch.value = 0
       }
+      // Signal Three.js to apply the uniform changes
+      material.uniformsNeedUpdate = true
       setCurrentRotation(depthEnabled ? rotation : { yaw: 0, pitch: 0 })
 
       // Update atlas coordinates if atlas mode is active

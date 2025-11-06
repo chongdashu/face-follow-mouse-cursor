@@ -397,6 +397,50 @@ npm list onnxruntime-web three react
 - Cursor input listeners were attaching before scene was ready, so they never bound to the canvas
 - Solution: Input effect now waits for `sceneReady` and rebinds when the scene initializes
 
+**If yaw/pitch values ARE changing but image still doesn't move:**
+- This is a different issue - see "Missing uniformsNeedUpdate Flag" below
+
+---
+
+### "Missing uniformsNeedUpdate Flag" (Debug Shows Values Changing But Image Doesn't Move)
+
+**Symptoms:**
+- Debug panel shows yaw/pitch values changing correctly (e.g., yaw: 5.23°, pitch: 2.15°)
+- Values update in real-time as you move the cursor
+- Image appears completely static - no parallax effect visible
+- Intensity slider changes values but no visual change
+
+**Root Cause:**
+- Three.js ShaderMaterial requires `material.uniformsNeedUpdate = true` to apply uniform changes
+- When yaw/pitch uniform values change, Three.js doesn't automatically detect this
+- Without the flag, the shader continues using old uniform values despite state updates
+- This is a Three.js-specific requirement for ShaderMaterial (different from regular Material)
+
+**Solution (Fixed):**
+Added `material.uniformsNeedUpdate = true` in the cursor move handler in `src/components/Viewer.tsx`:
+
+```typescript
+// Update depth parallax uniforms
+if (depthEnabled) {
+  material.uniforms.yaw.value = rotation.yaw
+  material.uniforms.pitch.value = rotation.pitch
+} else {
+  material.uniforms.yaw.value = 0
+  material.uniforms.pitch.value = 0
+}
+// Signal Three.js to apply the uniform changes
+material.uniformsNeedUpdate = true  // ← This line is critical!
+```
+
+**How to verify it's working:**
+1. Open debug panel (click "Show Debug" button)
+2. Move cursor over the canvas
+3. Debug panel should show changing yaw/pitch values
+4. Image geometry should deform following the cursor
+5. If you see changing values but no movement, this fix is needed
+
+**Note:** This is different from `material.needsUpdate` or `texture.needsUpdate`. For ShaderMaterial uniforms specifically, you must use `uniformsNeedUpdate`.
+
 ---
 
 ### "Vertex Shader Displacement Too Small" (Debug Shows Values Changing But Image Doesn't Move)
