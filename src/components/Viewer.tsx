@@ -619,28 +619,20 @@ export default function Viewer({
           let drawY = 0
 
           if (atlasAspect > originalAspect) {
-            // Atlas is wider ⇒ fit to width, center vertically
+            // Atlas is wider ⇒ fit to width, compute height precisely and center vertically
             drawWidth = originalDims.width
-            drawHeight = drawWidth / atlasAspect
-            drawY = (originalDims.height - drawHeight) / 2
+            const drawHeightFloat = drawWidth / atlasAspect
+            const drawYFloat = (originalDims.height - drawHeightFloat) / 2
+            drawY = Math.floor(drawYFloat)
+            drawHeight = originalDims.height - drawY * 2 // ensure exact fill without 1px gap
           } else {
-            // Atlas is taller or equal ⇒ fit to height, center horizontally
+            // Atlas is taller or equal ⇒ fit to height, compute width precisely and center horizontally
             drawHeight = originalDims.height
-            drawWidth = drawHeight * atlasAspect
-            drawX = (originalDims.width - drawWidth) / 2
+            const drawWidthFloat = drawHeight * atlasAspect
+            const drawXFloat = (originalDims.width - drawWidthFloat) / 2
+            drawX = Math.floor(drawXFloat)
+            drawWidth = originalDims.width - drawX * 2 // ensure exact fill without 1px gap
           }
-
-          // Round to integers to avoid sub-pixel sampling drift
-          drawWidth = Math.round(drawWidth)
-          drawHeight = Math.round(drawHeight)
-          drawX = Math.round(drawX)
-          drawY = Math.round(drawY)
-
-          // Round to integers to avoid sub-pixel sampling drift
-          drawWidth = Math.round(drawWidth)
-          drawHeight = Math.round(drawHeight)
-          drawX = Math.round(drawX)
-          drawY = Math.round(drawY)
 
           canvas.width = originalDims.width
           canvas.height = originalDims.height
@@ -736,15 +728,19 @@ export default function Viewer({
           let drawY = 0
 
           if (atlasAspect > originalAspect) {
-            // Atlas is wider ⇒ fit to width, center vertically
+            // Atlas is wider ⇒ fit to width, compute exact height and center vertically
             drawWidth = originalDims.width
-            drawHeight = drawWidth / atlasAspect
-            drawY = (originalDims.height - drawHeight) / 2
+            const drawHeightFloat = drawWidth / atlasAspect
+            const drawYFloat = (originalDims.height - drawHeightFloat) / 2
+            drawY = Math.floor(drawYFloat)
+            drawHeight = originalDims.height - drawY * 2
           } else {
-            // Atlas is taller or equal ⇒ fit to height, center horizontally
+            // Atlas is taller or equal ⇒ fit to height, compute exact width and center horizontally
             drawHeight = originalDims.height
-            drawWidth = drawHeight * atlasAspect
-            drawX = (originalDims.width - drawWidth) / 2
+            const drawWidthFloat = drawHeight * atlasAspect
+            const drawXFloat = (originalDims.width - drawWidthFloat) / 2
+            drawX = Math.floor(drawXFloat)
+            drawWidth = originalDims.width - drawX * 2
           }
 
           canvas.width = originalDims.width
@@ -886,44 +882,57 @@ export default function Viewer({
   }, [currentAtlasImageUrl, generatedAtlas]) // Use state that's updated by the effect below
 
   // Track container dimensions for atlas mode
+  // Important: do not bail if ref isn't set yet; wait until it's available
   useEffect(() => {
-    if (!containerRef.current) return
+    let rafId: number | null = null
+    let resizeTimeout: NodeJS.Timeout | null = null
 
     const updateDimensions = () => {
-      if (containerRef.current) {
-        setContainerDimensions({
-          width: containerRef.current.clientWidth,
-          height: containerRef.current.clientHeight
-        })
+      const el = containerRef.current
+      if (!el) return
+      setContainerDimensions({ width: el.clientWidth, height: el.clientHeight })
+    }
+
+    const initWhenReady = () => {
+      const el = containerRef.current
+      if (!el) {
+        // Try again on the next frame until React attaches the ref
+        rafId = requestAnimationFrame(initWhenReady)
+        return
+      }
+
+      // Initial update
+      updateDimensions()
+
+      // Debounced window resize
+      const handleWindowResize = () => {
+        if (resizeTimeout) clearTimeout(resizeTimeout)
+        resizeTimeout = setTimeout(updateDimensions, 100)
+      }
+      window.addEventListener('resize', handleWindowResize)
+
+      // Observe element size changes
+      const resizeObserver = new ResizeObserver(() => {
+        if (resizeTimeout) clearTimeout(resizeTimeout)
+        resizeTimeout = setTimeout(updateDimensions, 100)
+      })
+      resizeObserver.observe(el)
+
+      // Cleanup
+      return () => {
+        window.removeEventListener('resize', handleWindowResize)
+        resizeObserver.disconnect()
       }
     }
 
-    // Initial update
-    updateDimensions()
-
-    // Debounced window resize
-    let resizeTimeout: NodeJS.Timeout | null = null
-    const handleWindowResize = () => {
-      if (resizeTimeout) clearTimeout(resizeTimeout)
-      resizeTimeout = setTimeout(updateDimensions, 100)
-    }
-
-    window.addEventListener('resize', handleWindowResize)
-
-    // ResizeObserver for container changes
-    const resizeObserver = new ResizeObserver(() => {
-      if (resizeTimeout) clearTimeout(resizeTimeout)
-      resizeTimeout = setTimeout(updateDimensions, 100)
-    })
-
-    resizeObserver.observe(containerRef.current)
+    const cleanup = initWhenReady()
 
     return () => {
-      window.removeEventListener('resize', handleWindowResize)
-      resizeObserver.disconnect()
+      if (rafId) cancelAnimationFrame(rafId)
       if (resizeTimeout) clearTimeout(resizeTimeout)
+      if (typeof cleanup === 'function') cleanup()
     }
-  }, []) // Empty dependency - attach once on mount and never re-attach
+  }, []) // Attach once, but wait until ref is ready
 
   // Initialize mouse position to center when atlas loads
   useEffect(() => {
