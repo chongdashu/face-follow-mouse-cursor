@@ -122,14 +122,17 @@ export default function Viewer({
 
   // Debug: log when atlas state changes to help diagnose update issues
   useEffect(() => {
-    if (generatedAtlas && atlasState.currentImageUrl) {
-      console.log('[ATLAS] Hook state updated:', {
-        imageUrl: atlasState.currentImageUrl.substring(0, 50) + '...',
+    if (generatedAtlas) {
+      console.log('[ATLAS] Hook state:', {
+        hasImageUrl: !!atlasState.currentImageUrl,
+        imageUrl: atlasState.currentImageUrl ? atlasState.currentImageUrl.substring(0, 50) + '...' : null,
         gridCoords: atlasState.gridCoords,
-        mousePos: atlasMousePosition
+        mousePos: atlasMousePosition,
+        containerDims: containerDimensions,
+        atlasSize: generatedAtlas.size
       })
     }
-  }, [atlasState.currentImageUrl, atlasState.gridCoords, generatedAtlas, atlasMousePosition.x, atlasMousePosition.y])
+  }, [atlasState.currentImageUrl, atlasState.gridCoords, generatedAtlas, atlasMousePosition.x, atlasMousePosition.y, containerDimensions.width, containerDimensions.height])
 
   // Create fallback depth map (simple radial gradient)
   const createFallbackDepth = (width: number, height: number): ImageData => {
@@ -655,12 +658,20 @@ export default function Viewer({
   // Use currentAtlasImageUrl state which is updated by the effect below
   useEffect(() => {
     if (!currentAtlasImageUrl || !sceneStateRef.current || !generatedAtlas) {
+      // If we have an atlas but no current URL, try to get the center image as fallback
+      if (generatedAtlas && !currentAtlasImageUrl && sceneStateRef.current) {
+        const centerImageUrl = generatedAtlas.get('px0_py0')
+        if (centerImageUrl) {
+          console.log('[ATLAS] No current URL, loading center image as fallback')
+          setCurrentAtlasImageUrl(centerImageUrl)
+        }
+      }
       return
     }
 
     // Capture the URL to avoid TypeScript null check issues in async function
     const imageUrl = currentAtlasImageUrl
-    console.log('[ATLAS] Loading texture for URL:', imageUrl)
+    console.log('[ATLAS] Loading texture for URL:', imageUrl.substring(0, 80) + '...')
 
     const loadAtlasTexture = async () => {
       try {
@@ -820,15 +831,47 @@ export default function Viewer({
     }
   }, []) // Empty dependency - attach once on mount and never re-attach
 
+  // Initialize mouse position to center when atlas loads
+  useEffect(() => {
+    if (!generatedAtlas || !containerRef.current) return
+
+    // Initialize mouse position to center of container
+    const container = containerRef.current
+    const centerX = container.clientWidth / 2
+    const centerY = container.clientHeight / 2
+    
+    // Only initialize if mouse position is still at (0, 0) - meaning atlas just loaded
+    if (container.clientWidth > 0 && container.clientHeight > 0) {
+      setAtlasMousePosition(prev => {
+        if (prev.x === 0 && prev.y === 0) {
+          console.log('[ATLAS] Initializing mouse position to center:', { 
+            centerX, 
+            centerY, 
+            containerWidth: container.clientWidth, 
+            containerHeight: container.clientHeight 
+          })
+          return { x: centerX, y: centerY }
+        }
+        return prev
+      })
+    }
+  }, [generatedAtlas, containerDimensions.width, containerDimensions.height])
+
   // Update current atlas image URL and grid coordinates when atlas state changes
   useEffect(() => {
-    if (!generatedAtlas) return
+    if (!generatedAtlas) {
+      // Clear atlas state when atlas is removed
+      if (currentAtlasImageUrl) {
+        setCurrentAtlasImageUrl(null)
+        setCurrentGridCoords(null)
+      }
+      return
+    }
 
     // Always update grid coordinates so they follow cursor
     setCurrentGridCoords(atlasState.gridCoords)
 
     // Update canvas image if URL changed - this triggers the texture loading effect above
-    // Use a ref to track previous URL to avoid unnecessary updates
     const newImageUrl = atlasState.currentImageUrl
     if (newImageUrl && newImageUrl !== currentAtlasImageUrl) {
       console.log('[ATLAS] Image URL changed:', {
@@ -842,6 +885,10 @@ export default function Viewer({
       // Clear if URL becomes null
       console.log('[ATLAS] Image URL cleared')
       setCurrentAtlasImageUrl(null)
+    } else if (newImageUrl && newImageUrl === currentAtlasImageUrl) {
+      // Even if URL is the same, ensure we trigger a check
+      // This handles the case where atlas loads but URL hasn't changed yet
+      console.log('[ATLAS] Image URL unchanged, but ensuring texture is loaded:', newImageUrl.substring(0, 50))
     }
   }, [atlasState.currentImageUrl, atlasState.gridCoords, generatedAtlas, currentAtlasImageUrl, atlasMousePosition.x, atlasMousePosition.y])
 

@@ -51,10 +51,17 @@ export function useAtlasMode(
       return
     }
 
-    // Log available keys in map for debugging
+    // Log available keys in map for debugging (only once per map change)
     if (imageMap.size > 0) {
       const keys = Array.from(imageMap.keys())
-      console.log('[ATLAS-HOOK] Available keys in map:', keys.slice(0, 10), `... (${keys.length} total)`)
+      console.log('[ATLAS-HOOK] Updating image:', {
+        cursorX,
+        cursorY,
+        containerWidth,
+        containerHeight,
+        availableKeys: keys.slice(0, 5),
+        totalKeys: keys.length
+      })
     }
 
     // Validate container dimensions to avoid NaN
@@ -129,6 +136,13 @@ export function useAtlasMode(
   useEffect(() => {
     updateImage()
   }, [updateImage])
+
+  // Force update when key dependencies change directly (in case callback doesn't trigger)
+  useEffect(() => {
+    if (imageMap && imageMap.size > 0) {
+      updateImage()
+    }
+  }, [cursorX, cursorY, containerWidth, containerHeight, imageMap, updateImage])
 
   return {
     currentImageUrl,
