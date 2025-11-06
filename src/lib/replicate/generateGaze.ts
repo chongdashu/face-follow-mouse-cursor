@@ -189,7 +189,9 @@ export async function generateGazeAtlas(
 
       if (response.ok) {
         cacheStatus = await response.json()
-        console.log(`[ATLAS] Cache status: ${cacheStatus.cached}/${cacheStatus.total} cached`)
+        if (cacheStatus) {
+          console.log(`[ATLAS] Cache status: ${cacheStatus.cached}/${cacheStatus.total} cached`)
+        }
       }
     } catch (error) {
       console.warn('[ATLAS] Cache check failed:', error)
