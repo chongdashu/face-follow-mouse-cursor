@@ -41,6 +41,9 @@ export default function Viewer({
   const depthRunnerRef = useRef<OnnxDepthRunner | null>(null)
   const animationFrameRef = useRef<number>()
   const atlasTextureRef = useRef<THREE.Texture | null>(null)
+  const atlasDepthTextureRef = useRef<THREE.Texture | null>(null)
+  const originalDepthTextureRef = useRef<THREE.Texture | null>(null)
+  const atlasDepthMapCacheRef = useRef<Map<string, ImageData>>(new Map())
   const mousePositionRef = useRef({ x: 0, y: 0 })
   const atlasThrottleRef = useRef({ lastUpdateTime: 0 })
   const originalPortraitDimensionsRef = useRef<{ width: number; height: number } | null>(null)
@@ -342,6 +345,9 @@ export default function Viewer({
         depthTexture.needsUpdate = true
         depthTexture.colorSpace = THREE.LinearSRGBColorSpace
 
+        // Store reference to original depth texture for atlas mode restoration
+        originalDepthTextureRef.current = depthTexture
+
         if (!isMounted) {
           portraitTexture.dispose()
           depthTexture.dispose()
@@ -449,6 +455,7 @@ export default function Viewer({
       mousePositionRef.current = { x, y }
 
       // Update depth parallax uniforms
+      // In atlas mode, we generate depth maps for each atlas image, so parallax can still work
       const rotation = cursorMapperRef.current.map(
         x,
         y,
@@ -551,10 +558,14 @@ export default function Viewer({
   // Update intensity (depth scale) and depth enabled
   useEffect(() => {
     if (!sceneStateRef.current) return
-    // If depth is disabled, set scale to 0, otherwise use intensity value
+    
+    // When atlas mode is active, we generate depth maps for each atlas image
+    // So depth parallax can still work, but we may want to reduce intensity
+    // since atlas images already have gaze direction built in
     const scale = depthEnabled
       ? (intensity / 100) * (CONFIG.depthScaleMax - CONFIG.depthScaleMin) + CONFIG.depthScaleMin
       : 0
+      
     sceneStateRef.current.material.uniforms.depthScale.value = scale
   }, [intensity, depthEnabled])
 
@@ -768,16 +779,85 @@ export default function Viewer({
         if (sceneStateRef.current?.material?.uniforms?.map) {
           sceneStateRef.current.material.uniforms.map.value = newTexture
           sceneStateRef.current.material.uniformsNeedUpdate = true
-          
-          // Force render update
-          if (sceneStateRef.current.renderer) {
-            sceneStateRef.current.renderer.render(
-              sceneStateRef.current.scene,
-              sceneStateRef.current.camera
-            )
-          }
         } else {
           console.warn('[ATLAS] Material or uniforms not found')
+        }
+
+        // Generate depth map for this atlas image
+        // Check cache first
+        let atlasDepthMap = atlasDepthMapCacheRef.current.get(imageUrl)
+        
+        if (!atlasDepthMap && depthRunnerRef.current) {
+          try {
+            console.log('[ATLAS] Generating depth map for atlas image...')
+            // Convert processed canvas to ImageData
+            const depthCanvas = document.createElement('canvas')
+            depthCanvas.width = canvas.width
+            depthCanvas.height = canvas.height
+            const depthCtx = depthCanvas.getContext('2d')
+            if (!depthCtx) {
+              throw new Error('Could not get depth canvas context')
+            }
+            depthCtx.drawImage(canvas, 0, 0)
+            const imageData = depthCtx.getImageData(0, 0, depthCanvas.width, depthCanvas.height)
+
+            // Run depth inference
+            const depthResult = await depthRunnerRef.current.infer(imageData, true)
+            atlasDepthMap = depthResult.imageData
+
+            // Cache the depth map
+            atlasDepthMapCacheRef.current.set(imageUrl, atlasDepthMap)
+            console.log('[ATLAS] Depth map generated and cached')
+          } catch (depthError) {
+            console.warn('[ATLAS] Failed to generate depth map, using fallback:', depthError)
+            // Use fallback depth map
+            atlasDepthMap = createFallbackDepth(canvas.width, canvas.height)
+            atlasDepthMapCacheRef.current.set(imageUrl, atlasDepthMap)
+          }
+        } else if (atlasDepthMap) {
+          console.log('[ATLAS] Using cached depth map')
+        } else {
+          // No depth runner available, use fallback
+          console.log('[ATLAS] No depth runner, using fallback depth map')
+          atlasDepthMap = createFallbackDepth(canvas.width, canvas.height)
+          atlasDepthMapCacheRef.current.set(imageUrl, atlasDepthMap)
+        }
+
+        // Update depth texture
+        if (atlasDepthMap && sceneStateRef.current?.material?.uniforms?.depthMap) {
+          // Create depth texture from ImageData
+          const depthCanvas = document.createElement('canvas')
+          depthCanvas.width = atlasDepthMap.width
+          depthCanvas.height = atlasDepthMap.height
+          const depthCtx = depthCanvas.getContext('2d')
+          if (!depthCtx) {
+            throw new Error('Could not get depth canvas context')
+          }
+          depthCtx.putImageData(atlasDepthMap, 0, 0)
+          
+          // Dispose old depth texture
+          if (atlasDepthTextureRef.current) {
+            atlasDepthTextureRef.current.dispose()
+          }
+
+          const newDepthTexture = new THREE.CanvasTexture(depthCanvas)
+          newDepthTexture.flipY = true
+          newDepthTexture.needsUpdate = true
+          newDepthTexture.colorSpace = THREE.LinearSRGBColorSpace
+
+          atlasDepthTextureRef.current = newDepthTexture
+          sceneStateRef.current.material.uniforms.depthMap.value = newDepthTexture
+          sceneStateRef.current.material.uniformsNeedUpdate = true
+
+          console.log('[ATLAS] Depth texture updated')
+        }
+
+        // Force render update
+        if (sceneStateRef.current.renderer) {
+          sceneStateRef.current.renderer.render(
+            sceneStateRef.current.scene,
+            sceneStateRef.current.camera
+          )
         }
       } catch (err) {
         console.warn('[ATLAS] Error loading atlas texture:', err)
@@ -857,6 +937,34 @@ export default function Viewer({
     }
   }, [generatedAtlas, containerDimensions.width, containerDimensions.height])
 
+  // Restore original depth map when exiting atlas mode
+  useEffect(() => {
+    if (!generatedAtlas && sceneStateRef.current && originalDepthTextureRef.current) {
+      // Atlas mode was disabled, restore original depth map
+      console.log('[ATLAS] Restoring original depth map')
+      
+      // Dispose atlas depth texture
+      if (atlasDepthTextureRef.current) {
+        atlasDepthTextureRef.current.dispose()
+        atlasDepthTextureRef.current = null
+      }
+
+      // Restore original depth texture
+      if (sceneStateRef.current.material?.uniforms?.depthMap) {
+        sceneStateRef.current.material.uniforms.depthMap.value = originalDepthTextureRef.current
+        sceneStateRef.current.material.uniformsNeedUpdate = true
+        
+        // Force render update
+        if (sceneStateRef.current.renderer) {
+          sceneStateRef.current.renderer.render(
+            sceneStateRef.current.scene,
+            sceneStateRef.current.camera
+          )
+        }
+      }
+    }
+  }, [generatedAtlas])
+
   // Update current atlas image URL and grid coordinates when atlas state changes
   useEffect(() => {
     if (!generatedAtlas) {
@@ -865,6 +973,8 @@ export default function Viewer({
         setCurrentAtlasImageUrl(null)
         setCurrentGridCoords(null)
       }
+      // Clear depth map cache when atlas is removed
+      atlasDepthMapCacheRef.current.clear()
       return
     }
 
