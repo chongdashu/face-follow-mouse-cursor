@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react'
 import { CONFIG } from '../config'
 import { EXAMPLE_PORTRAITS } from '../lib/examplePortraits'
-import { hashArrayBuffer, hashImageUrl } from '../lib/hash/imageHash'
+import { hashArrayBuffer } from '../lib/hash/imageHash'
 import './Upload.css'
 
 interface UploadProps {
@@ -116,17 +116,11 @@ export default function Upload({ onImageUpload }: UploadProps) {
   /**
    * Load and use an example portrait image from URL
    * Applies same resizing logic as file upload
-   * Computes deterministic hash from URL for cache consistency across browsers
+   * Uses pre-defined stable hash from portrait object for cache consistency across browsers
    */
-  const handleExampleLoad = async (imageUrl: string) => {
+  const handleExampleLoad = async (imageUrl: string, stableHash: string) => {
     try {
-      // Compute stable hash from URL (deterministic across all browsers)
-      let stableHash: string | undefined
-      try {
-        stableHash = await hashImageUrl(imageUrl)
-      } catch (urlError) {
-        console.warn('Failed to compute URL hash:', urlError)
-      }
+      // Use pre-defined stable hash from portrait object (guaranteed consistent across browsers)
 
       const img = new Image()
       img.crossOrigin = 'anonymous'
@@ -157,10 +151,8 @@ export default function Upload({ onImageUpload }: UploadProps) {
       const resizedImg = new Image()
       await new Promise<void>((resolve, reject) => {
         resizedImg.onload = () => {
-          // Attach stable hash for later use in cache operations
-          if (stableHash) {
-            resizedImg.dataset.stableHash = stableHash
-          }
+          // Attach pre-defined stable hash for later use in cache operations
+          resizedImg.dataset.stableHash = stableHash
           resolve()
         }
         resizedImg.onerror = () => reject(new Error('Failed to create resized image'))
@@ -219,7 +211,7 @@ export default function Upload({ onImageUpload }: UploadProps) {
               className="example-portrait-card"
               onClick={(e) => {
                 e.stopPropagation()
-                handleExampleLoad(portrait.url)
+                handleExampleLoad(portrait.url, portrait.stableHash)
               }}
               title={portrait.photographer ? `Photo by ${portrait.photographer}` : portrait.name}
             >
