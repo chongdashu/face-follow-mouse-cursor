@@ -5,8 +5,25 @@
  */
 
 /**
+ * Generate SHA256 hash from an ArrayBuffer
+ * Deterministic across all browsers - same bytes always produce the same hash
+ * Used for hashing original file bytes for consistent cache keys
+ *
+ * @param buffer - ArrayBuffer to hash
+ * @returns Promise<string> - SHA256 hash as hex string
+ */
+export async function hashArrayBuffer(buffer: ArrayBuffer): Promise<string> {
+  const hashBuffer = await crypto.subtle.digest('SHA-256', buffer)
+  const hashArray = Array.from(new Uint8Array(hashBuffer))
+  const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('')
+  return hashHex
+}
+
+/**
  * Generate SHA256 hash from raw pixel data (ImageData)
  * Deterministic across all browsers - same pixels always produce the same hash
+ * Note: Pixel data may vary across browsers due to color management, so prefer
+ * file-bytes hashing for uploads and URL hashing for demo images
  *
  * @param imageData - ImageData object containing pixel data
  * @returns Promise<string> - SHA256 hash as hex string
