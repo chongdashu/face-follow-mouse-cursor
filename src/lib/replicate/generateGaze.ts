@@ -178,7 +178,6 @@ export async function generateGazeAtlas(
   imageHash?: string
 ): Promise<Map<string, string>> {
   const results = new Map<string, string>()
-  const angles: Array<{ px: number; py: number }> = []
 
   // Compute image hash once (or use provided)
   let hash: string | undefined
@@ -190,8 +189,10 @@ export async function generateGazeAtlas(
     console.log(`[ATLAS] Image hash: ${hash.substring(0, 8)}...`)
   }
 
-  // Check cache status first
-  let cacheStatus: { total: number; cached: number; imageHash: string } | null = null
+  // Check cache status first and use cached images directly
+  const cachedImages = new Map<string, string>() // Map of "px${px}_py${py}" -> url
+  const missingAngles: Array<{ px: number; py: number }> = []
+  
   if (hash) {
     try {
       const response = await fetch('/api/check-atlas-cache', {
@@ -203,37 +204,87 @@ export async function generateGazeAtlas(
       })
 
       if (response.ok) {
-        cacheStatus = await response.json()
+        const cacheStatus = await response.json()
+        console.log(`[ATLAS] Cache check response:`, cacheStatus)
+        
         if (cacheStatus) {
           console.log(`[ATLAS] Cache status: ${cacheStatus.cached}/${cacheStatus.total} cached`)
+          
+          // Add cached images directly to results
+          if (cacheStatus.found && Array.isArray(cacheStatus.found)) {
+            console.log(`[ATLAS] Found ${cacheStatus.found.length} cached images, adding to results`)
+            for (const item of cacheStatus.found) {
+              const key = `px${item.px}_py${item.py}`
+              cachedImages.set(key, item.url)
+              results.set(key, item.url)
+              console.log(`[ATLAS] Added cached image: ${key} -> ${item.url.substring(0, 50)}...`)
+            }
+          } else {
+            console.warn(`[ATLAS] No 'found' array in cache status or it's not an array:`, cacheStatus.found)
+          }
+          
+          // Collect missing angles that need generation
+          if (cacheStatus.missing && Array.isArray(cacheStatus.missing)) {
+            console.log(`[ATLAS] Found ${cacheStatus.missing.length} missing images to generate`)
+            for (const item of cacheStatus.missing) {
+              missingAngles.push({ px: item.px, py: item.py })
+            }
+          } else {
+            console.warn(`[ATLAS] No 'missing' array in cache status or it's not an array:`, cacheStatus.missing)
+          }
         }
+      } else {
+        const errorText = await response.text()
+        console.warn(`[ATLAS] Cache check failed with status ${response.status}:`, errorText)
       }
     } catch (error) {
       console.warn('[ATLAS] Cache check failed:', error)
     }
+  } else {
+    console.warn('[ATLAS] No hash provided, cannot check cache')
   }
 
-  // Generate all angle combinations
-  for (let px = min; px <= max; px += step) {
-    for (let py = min; py <= max; py += step) {
-      angles.push({ px, py })
+  console.log(`[ATLAS] After cache check: ${cachedImages.size} cached, ${missingAngles.length} missing`)
+
+  // If cache check didn't work or returned no data, generate all angles
+  if (missingAngles.length === 0 && cachedImages.size === 0) {
+    console.warn('[ATLAS] No cache data found, generating all angles')
+    for (let px = min; px <= max; px += step) {
+      for (let py = min; py <= max; py += step) {
+        missingAngles.push({ px, py })
+      }
     }
   }
 
-  const total = angles.length
-  let completed = 0
-  let cachedCount = 0
+  const total = (cachedImages.size + missingAngles.length) || 1
+  let completed = cachedImages.size
+  let cachedCount = cachedImages.size
 
-  // Generate images sequentially to avoid rate limits
-  // The API will automatically check cache for each request
-  for (const { px, py } of angles) {
+  // Report initial progress for cached images
+  if (cachedCount > 0) {
+    onProgress?.(completed, total, cachedCount)
+  }
+
+  // Generate only missing images sequentially to avoid rate limits
+  console.log(`[ATLAS] Starting generation for ${missingAngles.length} missing images`)
+  for (const { px, py } of missingAngles) {
+    const key = `px${px}_py${py}`
+    // Double-check: if this image is already in results (from cache), skip it
+    if (results.has(key)) {
+      console.log(`[ATLAS] Skipping ${key} - already in results from cache`)
+      continue
+    }
+    
+    console.log(`[ATLAS] Generating ${key}...`)
     try {
       const result = await generateGazeImage({ image, px, py, imageHash: hash })
-      const key = `px${px}_py${py}`
       results.set(key, result.imageUrl)
 
       if (result.cached) {
         cachedCount++
+        console.log(`[ATLAS] ${key} was cached (API returned cached=true)`)
+      } else {
+        console.log(`[ATLAS] ${key} generated new (API returned cached=false)`)
       }
 
       completed++
