@@ -7,10 +7,18 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
+# Dependencies
 node_modules
+
+# Build outputs
 dist
 dist-ssr
+
+# Environment files
 *.local
+.env
+.env*.local
+.env.production
 
 # Editor directories and files
 .vscode/*
@@ -23,8 +31,18 @@ dist-ssr
 *.sln
 *.sw?
 
+# Model files (too large for git)
 public/models/*.onnx
 
+# Vercel
 .vercel
-.env*.local
-.env
+
+# Internal documentation (not for public repo)
+chat_exports/
+scripts/upload-model-to-blob.ts
+CLAUDE.md
+AGENTS.md
+RESEARCH.md
+SCRIPT.md
+TROUBLESHOOTING.md
+PLAN_*.md

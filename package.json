@@ -1,8 +1,28 @@
 {
   "name": "face-follow-mouse-cursor",
-  "private": true,
   "version": "0.1.0",
+  "description": "A web application that makes portrait images follow your cursor using depth-based 2.5D parallax effects",
   "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/chongdashu/face-follow-mouse-cursor.git"
+  },
+  "keywords": [
+    "parallax",
+    "depth-map",
+    "three.js",
+    "onnx",
+    "webgl",
+    "computer-vision",
+    "portrait",
+    "interactive"
+  ],
+  "author": "",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/chongdashu/face-follow-mouse-cursor/issues"
+  },
+  "homepage": "https://github.com/chongdashu/face-follow-mouse-cursor#readme",
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
