@@ -49,7 +49,7 @@ See README.md for:
 - Dynamic generation via Replicate API (serverless function)
 - Cost estimation and troubleshooting
 
-## Implementation Plan (1–2 days)
+## Implementation Plan
 ### Option A — Depth-based (Three.js)
 - Scene: renderer, perspective (or ortho) camera, single scene.
 - Geometry: plane with ~128×128 subdivisions.
